@@ -6,6 +6,7 @@ import { XMLSerializer } from 'xmldom'
 import { localPoint, type LocalPoint } from '@ratamestari/core'
 import {
   buildTerrain,
+  withContourInterval,
   cellCenterOf,
   evaluateLeg,
   findControlSites,
@@ -29,6 +30,7 @@ import { svgDocument } from './svg-document'
 import { svgToPdf } from './svg-to-pdf'
 import {
   courseRequestSchema,
+  DEFAULT_CONTOUR_INTERVAL_METERS,
   PAPER,
   printScaleFor,
   printScaleSchema,
@@ -63,6 +65,7 @@ const { values } = parseArgs({
     skeleton: { type: 'boolean', default: false },
     purpose: { type: 'string', default: 'competition' },
     minutes: { type: 'string' },
+    'contour-interval': { type: 'string' },
   },
 })
 
@@ -83,9 +86,17 @@ const seed = Number(values.seed)
 
 const map = await loadOcadMap(new Uint8Array(readFileSync(mapPath)))
 const features = map.features()
-const terrain = buildTerrain(features, map.info.extent)
+const terrainAtStandardInterval = buildTerrain(features, map.info.extent)
 const overprintDetail = overprintDetailOf(features)
-const peripheral = findPeripheralInformation(map.annotations(), terrain, map.info.scale)
+const peripheral = findPeripheralInformation(
+  map.annotations(),
+  terrainAtStandardInterval,
+  map.info.scale,
+)
+const contourIntervalMeters = values['contour-interval']
+  ? Number(values['contour-interval'])
+  : (peripheral.contourIntervalMetres ?? DEFAULT_CONTOUR_INTERVAL_METERS.value)
+const terrain = withContourInterval(terrainAtStandardInterval, contourIntervalMeters)
 const sites = findControlSites(features, terrain).filter(
   site => describeControl(site) !== null && !isInPeripheralBlock(peripheral, site.position),
 )
@@ -196,7 +207,7 @@ function printSummary(c: Course, seconds: number) {
 
 function printDescriptions() {
   const text = (d: Parameters<typeof descriptionText>[0] | null) => (d ? descriptionText(d) : '?')
-  console.log(`climb: ${sheet.climbMeters} m`)
+  console.log(`climb: ${sheet.climbMeters} m at a ${contourIntervalMeters} m contour interval`)
   console.log(`  S  ${text(sheet.start)}`)
   for (const row of sheet.controls)
     console.log(`  ${row.number}  ${row.code}  ${text(row.description)}`)

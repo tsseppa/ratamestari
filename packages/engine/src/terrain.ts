@@ -62,3 +62,20 @@ export function buildTerrain(
     ),
   }
 }
+
+// The interval is often known only after the terrain is built: read from the map's margin texts,
+// or set by the user. Only the climb charged per contour depends on it.
+export function withContourInterval(terrain: Terrain, contourIntervalMeters: number): Terrain {
+  return {
+    ...terrain,
+    grid: {
+      ...terrain.grid,
+      contours: contourCellsOf(
+        terrain.grid,
+        terrain.contours.lines.map(line => line.points),
+        contourIntervalMeters,
+      ),
+    },
+    contourIntervalMeters,
+  }
+}

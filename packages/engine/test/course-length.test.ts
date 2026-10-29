@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { localPoint } from '@ratamestari/core'
 import { courseLengthMeters, measureCourse, shortestPassableMeters } from '../src/course-length'
 import { buildCostGrid } from '../src/cost-grid'
-import { buildTerrain } from '../src/terrain'
+import { buildTerrain, withContourInterval } from '../src/terrain'
 import { feature, line, rectangle, SQUARE_KILOMETRE } from './fixtures'
 
 describe('course length (Lajisäännöt 11.22)', () => {
@@ -39,5 +39,16 @@ describe('course length (Lajisäännöt 11.22)', () => {
     const measured = measureCourse(terrain, stops)
     expect(measured.climbMeters).toBe(15)
     expect(measured.lengthMeters).toBeGreaterThan(1600)
+  })
+
+  it('measures climb by the contour interval the map is drawn with', () => {
+    const water = feature('301', rectangle(0, 0, 1000, 50))
+    const contours = [300, 500, 700].map(y => feature('101', line([0, y], [1000, y])))
+    const terrain = buildTerrain([water, ...contours], SQUARE_KILOMETRE, {
+      restrictToMappedArea: false,
+    })
+    const stops = [localPoint(500, 100), localPoint(500, 900), localPoint(600, 100)]
+    const measured = measureCourse(withContourInterval(terrain, 2.5), stops)
+    expect(measured.climbMeters).toBe(7.5)
   })
 })
