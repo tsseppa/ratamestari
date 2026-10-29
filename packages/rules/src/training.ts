@@ -12,6 +12,17 @@ export type TrainingKind = z.infer<typeof trainingKindSchema>
 
 const difficultySchema = z.int().min(1).max(5)
 
+// How much the contours bend around a site, the measure of good terrain on a contour map (D25).
+export const contourDetailRuleSchema = z.object({
+  // The contour's direction is compared this far before and after each point.
+  bendSpanMeters: z.number().positive(),
+  // Turns gentler than this are noise in the line, not a form a runner can read.
+  minBendDegrees: z.number().min(0).max(180),
+  neighbourhoodRadiusMeters: z.number().positive(),
+})
+
+export type ContourDetailRule = z.infer<typeof contourDetailRuleSchema>
+
 // Training has no IOF or SSL values, so these are our defaults and the user may change any of
 // them (D25). Null keeps the class's competition value.
 export const trainingRulesSchema = citedSchema.extend({
@@ -25,6 +36,7 @@ export const trainingRulesSchema = citedSchema.extend({
     .nullable(),
   siteDifficulty: z.tuple([difficultySchema, difficultySchema]).nullable(),
   technicalAreas: technicalAreaRuleSchema,
+  contourDetail: contourDetailRuleSchema,
   findingsAsAdvice: z.boolean(),
 })
 
@@ -48,6 +60,7 @@ const contourTrainingDefaults = (format: Format): TrainingRules => {
       sources: CONTOUR_TRAINING_SOURCES,
       interpretation: true,
     },
+    contourDetail: { bendSpanMeters: 15, minBendDegrees: 30, neighbourhoodRadiusMeters: 150 },
     findingsAsAdvice: true,
     sources: CONTOUR_TRAINING_SOURCES,
     interpretation: true,
