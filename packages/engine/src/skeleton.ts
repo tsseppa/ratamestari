@@ -4,6 +4,7 @@ import type { TechnicalArea } from './areas'
 import { convexHullArea } from './course-metrics'
 import type { PlanningContext, SearchProgress } from './course-search'
 import { difficultyInCourse } from './flag-side'
+import { CONTROL_CIRCLE_FOOTPRINT_RADIUS_METERS } from './section-fill'
 import { isInsidePolygon, segmentsCross } from './polyline'
 import type { Random } from './random'
 
@@ -52,6 +53,10 @@ const MIDDLE_ROUTE_CHOICE_SHARE = 0.3
 const BOUNDED_TREE_SLACK = 1.3
 
 const distanceBetween = (a: LocalPoint, b: LocalPoint) => Math.hypot(b[0] - a[0], b[1] - a[1])
+
+// Every leg from the start would pass through the circle of a control right beside it.
+const isClearOfStart = (site: LocalPoint, start: LocalPoint) =>
+  distanceBetween(site, start) >= 2 * CONTROL_CIRCLE_FOOTPRINT_RADIUS_METERS
 
 export function planSkeleton(
   context: PlanningContext,
@@ -283,7 +288,13 @@ export function* planSkeletonSteps(
       nearestToFinish[sequence[sequence.length - 1]!]! <= DIRECT_FINISH_SHARE * targetSeconds
         ? null
         : last.sites
-            .filter(i => !used.has(i) && i !== start && inDifficultyRange(i))
+            .filter(
+              i =>
+                !used.has(i) &&
+                i !== start &&
+                inDifficultyRange(i) &&
+                isClearOfStart(pool[i]!.position, pool[start]!.position),
+            )
             .reduce<number | null>(
               (a, b) => (a === null || toFinish[b]! < toFinish[a]! ? b : a),
               null,
