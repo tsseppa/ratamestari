@@ -83,6 +83,22 @@ describe('countContourCrossings', () => {
     })
   })
 
+  it('reads the slope where contours stop short of the map frame', () => {
+    const forest = feature('405', rectangle(150, 0, 850, 1000))
+    const sea = feature('301', rectangle(150, 0, 850, 50))
+    const shortContours = [200, 400, 600].map(y => feature('101', line([200, y], [800, y])))
+    expect(crossings([forest, sea, ...shortContours], southToNorth)).toEqual({
+      up: 3,
+      down: 0,
+      unknown: 0,
+    })
+  })
+
+  it('descends from knoll tops when the map has no water', () => {
+    const knollOnTheSlope = [...contoursAt(200, 400), squareRing(100)]
+    expect(crossings(knollOnTheSlope, southToCenter)).toEqual({ up: 3, down: 0, unknown: 0 })
+  })
+
   it('turns downhill after a ridge where slope ticks say so', () => {
     const ridge = [
       seaInTheSouth,

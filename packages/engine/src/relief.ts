@@ -1,4 +1,5 @@
 import type { LocalExtent, LocalPoint, MapFeature } from '@ratamestari/core'
+import { mappedAreaMask } from './mapped-area'
 import { distanceToSegment } from './polyline'
 import { cellIndexOf, fillPolygon, traceLine, type GridFrame } from './raster'
 
@@ -18,7 +19,17 @@ const SIDE_SAMPLE_SPACING_METERS = 10
 const SLOPE_TICK_MAX_DISTANCE_FROM_CONTOUR_METERS = 3
 const SLOPE_TICK_ISOM_CODE = '101'
 const WATER_ISOM_CODES = new Set(['301', '302'])
+// Contours often stop short of the map frame, at the edge of the mapped area, which would join the
+// land on both sides around the end. Such an end is extended to the frame to keep the sides apart.
+const MAPPED_EDGE_MAX_DISTANCE_FROM_END_METERS = 100
 const NONE = -1
+const DESCENDING = -1
+const CLIMBING = 1
+
+interface Seed {
+  readonly region: number
+  readonly slope: number
+}
 
 interface Edge {
   readonly line: number
@@ -38,6 +49,10 @@ export function computeUphillSides(
       if (contourAt[i] === NONE) contourAt[i] = id
     }),
   )
+  const mappedArea = mappedAreaMask(features, frame)
+  lines.forEach((line, id) => {
+    if (!line.isClosed) extendEndsToFrame(frame, contourAt, mappedArea, line.points, id)
+  })
   const { regionAt, regionCount } = labelRegions(frame, contourAt)
   const sides = lines.map(line => sideRegions(frame, regionAt, line.points))
   const evidence = uphillEvidence(lines, features)
@@ -46,6 +61,7 @@ export function computeUphillSides(
     sides,
     evidence,
     waterRegions(frame, regionAt, features),
+    summitsAndFloors(lines, sides, evidence),
   )
 
   return Int8Array.from(lines, (_, id): UphillSide => {
@@ -72,6 +88,66 @@ function regionFrame([minX, minY, maxX, maxY]: LocalExtent): GridFrame {
     columns: Math.max(1, Math.ceil((maxX - minX) / REGION_CELL_SIZE_METERS)),
     rows: Math.max(1, Math.ceil((maxY - minY) / REGION_CELL_SIZE_METERS)),
   }
+}
+
+function extendEndsToFrame(
+  frame: GridFrame,
+  contourAt: Int32Array,
+  mappedArea: Uint8Array,
+  points: readonly LocalPoint[],
+  id: number,
+) {
+  if (points.length < 2) return
+  const extend = (end: LocalPoint, inward: LocalPoint) => {
+    const length = Math.hypot(end[0] - inward[0], end[1] - inward[1])
+    if (length === 0) return
+    const stepX = ((end[0] - inward[0]) / length) * frame.cellSizeMeters
+    const stepY = ((end[1] - inward[1]) / length) * frame.cellSizeMeters
+    const cells: number[] = []
+    let hasLeftMappedArea = false
+    for (let step = 1; ; step++) {
+      const index = cellIndexOf(frame, [
+        end[0] + stepX * step,
+        end[1] + stepY * step,
+      ] as const as LocalPoint)
+      if (index === null) break
+      if (contourAt[index] !== NONE && contourAt[index] !== id) break
+      if (mappedArea[index]) {
+        if (hasLeftMappedArea) break
+        if (step * frame.cellSizeMeters > MAPPED_EDGE_MAX_DISTANCE_FROM_END_METERS) return
+      } else {
+        hasLeftMappedArea = true
+      }
+      cells.push(index)
+    }
+    if (hasLeftMappedArea) cells.forEach(i => (contourAt[i] = id))
+  }
+  extend(points[0]!, points[1]!)
+  extend(points[points.length - 1]!, points[points.length - 2]!)
+}
+
+// The innermost region of a closed contour is a summit or the floor of a depression: the land
+// falls away from a summit and rises from a floor, as it rises from water.
+function summitsAndFloors(
+  lines: readonly ContourLine[],
+  sides: readonly { left: number; right: number }[],
+  evidence: Int8Array,
+): Seed[] {
+  const linesAround = new Map<number, number>()
+  for (const { left, right } of sides) {
+    if (left === NONE) continue
+    linesAround.set(left, (linesAround.get(left) ?? 0) + 1)
+    linesAround.set(right, (linesAround.get(right) ?? 0) + 1)
+  }
+  return lines.flatMap((line, id): Seed[] => {
+    const { left, right } = sides[id]!
+    if (!line.isClosed || left === NONE || evidence[id] === UPHILL_UNKNOWN) return []
+    const insideIsLeft = signedArea(line.points) > 0
+    const inside = insideIsLeft ? left : right
+    if (linesAround.get(inside) !== 1) return []
+    const insideIsUphill = evidence[id] === (insideIsLeft ? LEFT_IS_UPHILL : RIGHT_IS_UPHILL)
+    return [{ region: inside, slope: insideIsUphill ? DESCENDING : CLIMBING }]
+  })
 }
 
 function labelRegions(frame: GridFrame, contourAt: Int32Array) {
@@ -215,6 +291,7 @@ function solveRegionLevels(
   sides: readonly { left: number; right: number }[],
   evidence: Int8Array,
   lowestRegions: ReadonlySet<number>,
+  summitsAndFloors: readonly Seed[],
 ) {
   const edges: Edge[][] = Array.from({ length: regionCount }, () => [])
   sides.forEach(({ left, right }, line) => {
@@ -263,7 +340,12 @@ function solveRegionLevels(
 
   let nextComponent = 0
   if (lowestRegions.size > 0) {
-    lowestRegions.forEach(region => seed(region, 1, nextComponent))
+    lowestRegions.forEach(region => seed(region, CLIMBING, nextComponent))
+    relaxFrom(nextComponent++)
+  }
+  for (const { region, slope } of summitsAndFloors) {
+    if (component[region] !== NONE) continue
+    seed(region, slope, nextComponent)
     relaxFrom(nextComponent++)
   }
   for (let region = 0; region < regionCount; region++) {
