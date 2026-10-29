@@ -11,7 +11,7 @@ Ideas mentioned while working, before they become a plan. One line each: date, i
 - 2026-10-29 · Contour-map leg style: long legs along or across a slope that end at one clear contour feature · planned
 - 2026-10-29 · Form-line bends as control sites (they have no known uphill side yet, so they are dropped) · planned
 - 2026-10-29 · Reduced maps: a printed symbol set with a contour-map preset the user can change; controls only on printed features · planned
-- 2026-10-29 · Contour training needs several kinds of course to choose from; "most contour detail on the hillsides" suited one terrain and is only the first kind · idea
+- 2026-10-29 · Training styles for any map: control picking (many short legs, varied angles) and long legs (long, short, long), sized by the winning time; see D26 · planned
 - 2026-10-29 · Leg turns as part of the contour training rules · idea
 - 2026-10-29 · Tune the 30° minimum contour bend; it is fine for now · idea
 - 2026-10-29 · Training-rules editor in Settings with "Reset to defaults" · planned

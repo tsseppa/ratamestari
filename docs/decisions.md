@@ -781,3 +781,64 @@ Where the values live:
 - Settings get a training-rules editor with "Reset to defaults". All its text goes in the message catalogues (D14).
 - `docs/rules/course-setting.md` gets a training section, marked as our defaults, not a digest.
 - PDF and image maps (D22) can use contour-map training later.
+
+## D26: Training styles: control picking and long legs, for any map
+
+**Date:** 2026-10-29
+**Status:** Proposed
+
+### Decision
+
+A training course has a **style**, which says what kind of course it is. The style is separate from the **map** it is set on:
+
+- **Map** (D25's training kind): how the terrain is read. **Contour map** uses contour-detail quality and, later, the printed symbol set. **Full map** reads the terrain as competition courses do.
+- **Style**: the shape of the course. The first two are below. Each works on either map.
+
+Training no longer asks for a distance (long or middle), which is a competition format. Its size is the **winning time**. The number of controls follows from the time and the style's leg times, so a longer training gets more legs of the same kind, not longer ones.
+
+**Control picking** (rastinotto): many short legs, so the runner reads the map at every control.
+
+- Only short legs. Every leg is within the style's short-leg range.
+- The angle between legs varies, to the left and to the right. Most controls have **at least a small bend**, so the runner takes a new direction at the control rather than running straight through. Straight on is allowed now and then. The course is not a loop that turns one way all the time.
+- Aims for **many controls**: the target count is the winning time divided by the style's time per leg.
+
+**Long legs**: route choice and keeping direction over a distance.
+
+- The course alternates **one long leg** and **one or more short legs**. The short legs take the runner to a good start for the next long leg, for example to the right side of a hill or to the start of an area of detail.
+- On a contour map a long leg runs along or across a slope and ends at one clear contour feature (from D25).
+- Aims for **few controls**. About **75% of the time is on long legs**, whatever the winning time. A shorter training gets fewer or shorter long legs, not a smaller share of long legs.
+
+**Both styles may cross their own legs and come back near earlier controls**, so that a small good area is used well. In training, crossing legs cost nothing in the course score. Competition courses keep the crossing rule as it is. A leg through a control circle is avoided in training as in competition: the runner can't read the course there.
+
+The values are Ratamestari defaults (D25): cited as `Ratamestari defaults`, flagged `interpretation`, and the user can change them. Proposed starting values, to tune on real maps:
+
+|                                      | Control picking | Long legs                                                |
+| ------------------------------------ | --------------- | -------------------------------------------------------- |
+| Short leg                            | 50–250 m        | 100–400 m                                                |
+| Long leg                             | none            | from the time: about 10 min, shorter in a short training |
+| Time per short leg (target)          | about 1.5 min   | about 1.5 min                                            |
+| Share of time on long legs           | none            | about 75%                                                |
+| Short legs in a row                  | all             | 1–3                                                      |
+| Controls with a bend of at least 15° | most (80%)      | none required                                            |
+
+### Why
+
+- Control picking and long legs are the two most common map-training forms, and neither is tied to contour maps.
+- A competition leg mix is a mix of every kind of leg. A training form is often only one kind, which no competition rule allows.
+- A coach plans training by time ("a 45-minute session"), not by competition format, and the group should get the same kind of course whatever the time.
+- Keeping the style separate from the map avoids one training kind per combination (contour control picking, full-map control picking, …).
+- Crossing legs are a problem in competition because of fairness and of how the course reads. In training, using a small good area many times matters more. A line through a control circle is hard to read in any course.
+
+### Alternatives considered
+
+- **Styles as contour training kinds:** they would have to be repeated for every map kind.
+- **A fixed number of controls per style:** wrong at every time but the one it was set for.
+- **Keeping long and middle distance for training:** these are competition formats. The time and the style already say how big the course is and what its legs are like. Also, it is always possible to get a middle distance or long distance course as a race course.
+
+### Consequences
+
+- The training rules (`packages/rules`, `training.ts`) get `style` and a style profile: leg-length ranges, time per leg, share of time on long legs, and short legs in a row. The training request takes the style instead of `format`.
+- The engine takes its leg-length target and control count from the style profile instead of `FORMAT_QUALITY`. A new course check scores the bends at controls and how varied they are, and long legs get a leg pattern: long, then 1–3 short, then long. In training the crossing score is off and the closeness score is relaxed. The check for lines through control circles stays.
+- In the workspace, training asks for the map (contour map or full map), the style and the winning time.
+- The assistant can choose the style from words such as "rastinotto" or "long legs".
+- More styles can be added later as further profiles, for example corridor or line orienteering.
