@@ -195,9 +195,13 @@ const engine = {
   },
 
   // For maps read outside the worker, such as from a PDF (D22).
-  loadFeatures(features: readonly MapFeature[], info: MapInfo): void {
+  loadFeatures(
+    features: readonly MapFeature[],
+    info: MapInfo,
+    contourIntervalMeters: number | null,
+  ): void {
     map = null
-    contourIntervalByUser = null
+    contourIntervalByUser = contourIntervalMeters
     mapInfo = info
     useFeatures(features, [], info)
   },

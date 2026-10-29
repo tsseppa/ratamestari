@@ -1,3 +1,5 @@
+import type { ContourInterval } from './engine.worker'
+
 const STORAGE_PREFIX = 'ratamestari.contourInterval.'
 
 // A map's own contour interval, set by the user, is kept per map like its symbol corrections.
@@ -23,3 +25,7 @@ export function contourIntervalFrom(typed: string): number | null {
   const meters = Number(typed)
   return typed.trim() !== '' && Number.isFinite(meters) && meters > 0 ? meters : null
 }
+
+// The standard interval the engine falls back on is not printed, as the map does not say it.
+export const printedContourInterval = ({ meters, readFromMap, isSetByUser }: ContourInterval) =>
+  isSetByUser ? meters : readFromMap

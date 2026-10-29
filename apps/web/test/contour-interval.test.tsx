@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { contourIntervalFrom } from '../src/contour-interval'
+import { contourIntervalFrom, printedContourInterval } from '../src/contour-interval'
 import { ENGLISH } from '../src/i18n'
 import { ContourIntervalLine } from '../src/WorkspaceStart'
 
@@ -20,6 +20,21 @@ describe('contourIntervalFrom', () => {
 
   it('reads nothing from an empty, zero or non-numeric field', () => {
     for (const typed of ['', ' ', '0', '-2', 'abc']) expect(contourIntervalFrom(typed)).toBeNull()
+  })
+})
+
+describe('printedContourInterval', () => {
+  it("prints the user's own interval when they have set one", () => {
+    expect(printedContourInterval({ meters: 2, readFromMap: 5, isSetByUser: true })).toBe(2)
+    expect(printedContourInterval({ meters: 2, readFromMap: null, isSetByUser: true })).toBe(2)
+  })
+
+  it('prints the interval read from the map otherwise', () => {
+    expect(printedContourInterval({ meters: 2.5, readFromMap: 2.5, isSetByUser: false })).toBe(2.5)
+  })
+
+  it('prints nothing when the map does not say, rather than the standard fallback', () => {
+    expect(printedContourInterval({ meters: 5, readFromMap: null, isSetByUser: false })).toBeNull()
   })
 })
 

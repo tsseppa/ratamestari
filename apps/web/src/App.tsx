@@ -34,7 +34,11 @@ import { ChatPanel } from './ChatPanel'
 import { useAssistantKey } from './assistant-key'
 import { SettingsSheet } from './SettingsSheet'
 import { ContourIntervalLine, MapStart, PanelHeader, PanelLine } from './WorkspaceStart'
-import { loadContourInterval, saveContourInterval } from './contour-interval'
+import {
+  loadContourInterval,
+  printedContourInterval,
+  saveContourInterval,
+} from './contour-interval'
 import { atLeastHalf, SheetHandle, sheetStyle, type SheetSize } from './SheetHandle'
 import { CoursePanel, hasCoarsePointer } from './CoursePanel'
 import { CourseRoutesPanel } from './CourseRoutesPanel'
@@ -373,14 +377,15 @@ export function App() {
 
   // Experimental (D22, D24): the map and the course printed on it, read from a PDF page.
   async function openPdfMap(fileName: string, bytes: Uint8Array) {
-    setMapKey(null)
+    const key = await mapKeyOf(bytes)
+    setMapKey(key)
     setCorrections(new Map())
     try {
       const t0 = performance.now()
       const reading = await readPdfMapFile(bytes)
       if (reading.kind === 'picture') throw new Error(messages.workspace.pdfIsPicture)
       if (reading.kind === 'nothing') throw new Error(messages.workspace.pdfWithoutMap)
-      await showPdfPage(fileName, reading.page, reading.page.suggestedPrintScale, t0)
+      await showPdfPage(fileName, key, reading.page, reading.page.suggestedPrintScale, t0)
     } catch (e) {
       setEngineState('error')
       setState({ status: 'error', message: errorMessage(e) })
@@ -389,6 +394,7 @@ export function App() {
 
   async function showPdfPage(
     fileName: string,
+    key: string,
     page: PdfMapPage,
     printScale: number,
     t0 = performance.now(),
@@ -396,8 +402,12 @@ export function App() {
     const map = await pdfLoadedMap(page, printScale)
     setEngineState('loading')
     engine
-      .loadFeatures(page.features(printScale), map.info)
-      .then(() => setEngineState('ready'))
+      .loadFeatures(page.features(printScale), map.info, loadContourInterval(key))
+      .then(() => engine.contourInterval())
+      .then(interval => {
+        setContourInterval(interval)
+        setEngineState('ready')
+      })
       .catch(() => setEngineState('error'))
     const image = await rasterizeSvg(map.renderSvg(document), map.info.extent)
     setState({
@@ -416,9 +426,9 @@ export function App() {
   }
 
   async function changePdfPrintScale(printScale: number) {
-    if (state.status !== 'ready' || !state.pdf) return
+    if (state.status !== 'ready' || !state.pdf || !mapKey) return
     clearWorkspace(state.fileName)
-    await showPdfPage(state.fileName, state.pdf.page, printScale)
+    await showPdfPage(state.fileName, mapKey, state.pdf.page, printScale)
   }
 
   useEffect(() => {
@@ -1430,7 +1440,9 @@ export function App() {
               engine
                 .peripheralInformation()
                 .then(peripheral => {
-                  const contours = peripheral.contourIntervalMetres
+                  const contours = contourInterval
+                    ? printedContourInterval(contourInterval)
+                    : peripheral.contourIntervalMetres
                   const scaleLine = messages.print.scaleLine(
                     format.scale(course.printArea?.scale ?? map.info.scale),
                     contours === null ? null : format.contourInterval(contours),
