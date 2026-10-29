@@ -15,6 +15,7 @@ import {
   type CourseTarget,
   type Format,
   type ScoreTermName,
+  type TrainingRules,
 } from '@ratamestari/rules'
 import type { ControlSiteCandidate, TechnicalDifficulty } from './control-sites'
 import { difficultyInCourse, flagSideFor, type FlagSide } from './flag-side'
@@ -86,7 +87,11 @@ export interface CourseSpec {
   // The user's wish for the start, as straight-line metres from the finish.
   readonly startDistanceFromFinishMeters?: readonly [number, number] | null
   readonly locks?: CourseLocks | null
+  readonly training?: TrainingRules | null
 }
+
+const technicalAreaRuleOf = (spec: CourseSpec) =>
+  spec.training?.technicalAreas ?? TECHNICAL_AREAS[spec.format]
 
 export interface Finding {
   readonly kind: keyof CourseProblems
@@ -280,7 +285,7 @@ export function* searchCourseSteps(
     const areas = findTechnicalAreas(
       pool,
       planning.quality,
-      TECHNICAL_AREAS[spec.format],
+      technicalAreaRuleOf(spec),
       grid,
       planning.paceSecondsPerKm,
     )
@@ -662,7 +667,7 @@ export function planCourse(
   const areas = findTechnicalAreas(
     pool,
     context.quality,
-    TECHNICAL_AREAS[spec.format],
+    technicalAreaRuleOf(spec),
     terrain.grid,
     context.paceSecondsPerKm,
   )

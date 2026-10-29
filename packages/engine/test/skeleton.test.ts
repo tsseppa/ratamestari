@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { localExtent, localPoint, type MapFeature } from '@ratamestari/core'
-import { courseTargetFor } from '@ratamestari/rules'
+import { courseTargetFor, TRAINING_DEFAULTS } from '@ratamestari/rules'
 import { findControlSites } from '../src/control-sites'
 import { planCourse, type CourseSpec } from '../src/course-search'
 import { buildTerrain } from '../src/terrain'
@@ -72,6 +72,17 @@ describe('planSkeleton', { timeout: SETUP_TIMEOUT_MS }, () => {
     const again = planCourse(terrain, sites, spec())!.skeleton!
     const first = planCourse(terrain, sites, spec())!.skeleton!
     expect(again).toEqual(first)
+  })
+
+  it("finds technical areas by the training rules' area rule", () => {
+    const training = TRAINING_DEFAULTS.contour.middle
+    const unreachable = { ...training.technicalAreas, minPoints: sites.length + 1 }
+    const plan = planCourse(
+      terrain,
+      sites,
+      spec({ training: { ...training, technicalAreas: unreachable } }),
+    )
+    expect(plan!.areas).toEqual([])
   })
 
   it('falls back to one section over the whole pool when the map has no technical areas', () => {

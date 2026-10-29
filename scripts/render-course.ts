@@ -34,7 +34,13 @@ import {
   printScaleFor,
   printScaleSchema,
   TECHNICAL_AREAS,
+  TRAINING_DEFAULTS,
+  coursePurposeSchema,
+  trainingTargetFor,
+  trainingWinningTimeFor,
   type CourseRequest,
+  type Format,
+  type TrainingRules,
 } from '@ratamestari/rules'
 
 const MAPS_FOLDER = 'maps'
@@ -60,6 +66,8 @@ const { values } = parseArgs({
     scale: { type: 'string', default: 'auto' },
     areas: { type: 'boolean', default: false },
     skeleton: { type: 'boolean', default: false },
+    purpose: { type: 'string', default: 'competition' },
+    minutes: { type: 'string' },
   },
 })
 
@@ -84,7 +92,9 @@ const peripheral = findPeripheralInformation(map.annotations(), terrain, map.inf
 const sites = findControlSites(features, terrain).filter(
   site => describeControl(site) !== null && !isInPeripheralBlock(peripheral, site.position),
 )
-const target = courseTargetFor(request)
+const purpose = coursePurposeSchema.parse(values.purpose)
+const training = purpose === 'training' ? trainingRulesFor(request.format) : null
+const target = training ? trainingTargetFor(request, training) : courseTargetFor(request)
 if (!target) throw new Error('No winning time for this class and event')
 
 const centre = values.centre ? parsePoint(values.centre) : middleOfMappedArea()
@@ -101,6 +111,7 @@ const course = setCourseOnPaper(
     ),
     competitionCentre: centre,
     seed,
+    training,
     paceSecondsPerKm,
     peripheralSize: peripheralLayout(peripheral.blocks),
   },
@@ -162,6 +173,12 @@ function firstMapIn(folder: string): string {
 function parsePoint(text: string): LocalPoint {
   const [x = 0, y = 0] = text.split(',').map(Number)
   return localPoint(x, y)
+}
+
+function trainingRulesFor(format: Format): TrainingRules {
+  const defaults = TRAINING_DEFAULTS.contour[format]
+  if (!values.minutes) return defaults
+  return { ...defaults, winningTime: trainingWinningTimeFor(Number(values.minutes)) }
 }
 
 function middleOfMappedArea(): LocalPoint {
@@ -262,7 +279,7 @@ function areaOverlay(c: Course): string {
   const areas = findTechnicalAreas(
     onPaper,
     quality,
-    TECHNICAL_AREAS[request.format],
+    training?.technicalAreas ?? TECHNICAL_AREAS[request.format],
     terrain.grid,
     paceSecondsPerKm,
   )
@@ -300,6 +317,7 @@ function skeletonOverlay(c: Course): string {
     seed,
     paceSecondsPerKm,
     printArea: area,
+    training,
   })
   const skeleton = plan?.skeleton
   if (!plan || !skeleton) {
