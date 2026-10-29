@@ -11,13 +11,20 @@ import {
 } from './winning-time'
 
 export const skillLetterSchema = z.enum(['E', 'A', 'B', 'C'])
+export const coursePurposeSchema = z.enum(['competition', 'training'])
 
+export type CoursePurpose = z.infer<typeof coursePurposeSchema>
+
+// Without a purpose the course is for competition. A training course may ask for its own winning
+// time; without one it keeps the class's time at the event level (D25).
 export const courseRequestSchema = z.object({
   eventLevel: eventLevelSchema,
   format: formatSchema,
   sex: sexSchema,
   ageClass: ageClassSchema,
   skillLetter: skillLetterSchema.default('A'),
+  purpose: coursePurposeSchema.optional(),
+  trainingMinutes: z.number().positive().optional(),
 })
 
 export const skillColourSchema = z.enum([

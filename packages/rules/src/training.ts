@@ -4,10 +4,8 @@ import { TECHNICAL_AREAS, technicalAreaRuleSchema } from './course-quality'
 import { citedSchema, ratamestariDefaults } from './source'
 import type { Format } from './winning-time'
 
-export const coursePurposeSchema = z.enum(['competition', 'training'])
 export const trainingKindSchema = z.enum(['contour'])
 
-export type CoursePurpose = z.infer<typeof coursePurposeSchema>
 export type TrainingKind = z.infer<typeof trainingKindSchema>
 
 const difficultySchema = z.int().min(1).max(5)
@@ -98,4 +96,17 @@ export function trainingTargetFor(
     sources,
     interpretation: true,
   }
+}
+
+export function trainingRulesFor(request: CourseRequest): TrainingRules | null {
+  if (request.purpose !== 'training') return null
+  const defaults = TRAINING_DEFAULTS.contour[request.format]
+  return request.trainingMinutes === undefined
+    ? defaults
+    : { ...defaults, winningTime: trainingWinningTimeFor(request.trainingMinutes) }
+}
+
+export function courseTargetForPurpose(request: CourseRequest): CourseTarget | null {
+  const training = trainingRulesFor(request)
+  return training ? trainingTargetFor(request, training) : courseTargetFor(request)
 }

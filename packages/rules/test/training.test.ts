@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { TECHNICAL_AREAS } from '../src/course-quality'
 import { courseRequestSchema, courseTargetFor, type CourseRequest } from '../src/course-request'
 import {
+  courseTargetForPurpose,
   TRAINING_DEFAULTS,
+  trainingRulesFor,
   trainingRulesSchema,
   trainingTargetFor,
   trainingWinningTimeFor,
@@ -66,5 +68,26 @@ describe('trainingWinningTimeFor', () => {
     expect(time.targetMinutes).toBe(60)
     expect(time.minMinutes).toBeLessThan(60)
     expect(time.maxMinutes).toBeGreaterThan(60)
+  })
+})
+
+describe('trainingRulesFor', () => {
+  it('gives no training rules to a competition request, with or without a purpose', () => {
+    expect(trainingRulesFor(request)).toBeNull()
+    expect(trainingRulesFor({ ...request, purpose: 'competition' })).toBeNull()
+  })
+
+  it("gives contour training the format's defaults and the minutes asked for", () => {
+    const rules = trainingRulesFor({ ...request, purpose: 'training', trainingMinutes: 45 })
+    expect(rules?.technicalAreas).toEqual(TRAINING_DEFAULTS.contour.long.technicalAreas)
+    expect(rules?.winningTime?.targetMinutes).toBe(45)
+  })
+})
+
+describe('courseTargetForPurpose', () => {
+  it('is the competition target unless the request is for training', () => {
+    expect(courseTargetForPurpose(request)).toEqual(courseTargetFor(request))
+    const training = { ...request, purpose: 'training' as const, trainingMinutes: 45 }
+    expect(courseTargetForPurpose(training)?.winningTime.targetMinutes).toBe(45)
   })
 })

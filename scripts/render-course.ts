@@ -29,18 +29,13 @@ import { svgDocument } from './svg-document'
 import { svgToPdf } from './svg-to-pdf'
 import {
   courseRequestSchema,
-  courseTargetFor,
   PAPER,
   printScaleFor,
   printScaleSchema,
   TECHNICAL_AREAS,
-  TRAINING_DEFAULTS,
-  coursePurposeSchema,
-  trainingTargetFor,
-  trainingWinningTimeFor,
+  courseTargetForPurpose,
+  trainingRulesFor,
   type CourseRequest,
-  type Format,
-  type TrainingRules,
 } from '@ratamestari/rules'
 
 const MAPS_FOLDER = 'maps'
@@ -79,6 +74,8 @@ const request: CourseRequest = courseRequestSchema.parse({
   sex,
   ageClass: Number(age),
   skillLetter: values.letter,
+  purpose: values.purpose,
+  ...(values.minutes && { trainingMinutes: Number(values.minutes) }),
 })
 const [paceMinutes = '5', paceSeconds = '00'] = values.pace.split(':')
 const paceSecondsPerKm = Number(paceMinutes) * 60 + Number(paceSeconds)
@@ -92,9 +89,8 @@ const peripheral = findPeripheralInformation(map.annotations(), terrain, map.inf
 const sites = findControlSites(features, terrain).filter(
   site => describeControl(site) !== null && !isInPeripheralBlock(peripheral, site.position),
 )
-const purpose = coursePurposeSchema.parse(values.purpose)
-const training = purpose === 'training' ? trainingRulesFor(request.format) : null
-const target = training ? trainingTargetFor(request, training) : courseTargetFor(request)
+const training = trainingRulesFor(request)
+const target = courseTargetForPurpose(request)
 if (!target) throw new Error('No winning time for this class and event')
 
 const centre = values.centre ? parsePoint(values.centre) : middleOfMappedArea()
@@ -173,12 +169,6 @@ function firstMapIn(folder: string): string {
 function parsePoint(text: string): LocalPoint {
   const [x = 0, y = 0] = text.split(',').map(Number)
   return localPoint(x, y)
-}
-
-function trainingRulesFor(format: Format): TrainingRules {
-  const defaults = TRAINING_DEFAULTS.contour[format]
-  if (!values.minutes) return defaults
-  return { ...defaults, winningTime: trainingWinningTimeFor(Number(values.minutes)) }
 }
 
 function middleOfMappedArea(): LocalPoint {
