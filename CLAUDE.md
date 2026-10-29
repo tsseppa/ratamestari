@@ -10,7 +10,7 @@ Full decision log with reasoning and rejected alternatives: [`docs/decisions.md`
 
 1. **The map never leaves the user's computer** (D3). OCAD parsing and the course engine run in the browser (engine in a Web Worker). The LLM receives only text and numbers: the request, course/leg statistics, rule-check results, control descriptions as words. Never send the map file, coordinates or geometry to the LLM or any server.
 2. **Algorithms set the course; the LLM handles language** (D2). All geometry, distances, routing and rule checks are deterministic code. The LLM is an agent that turns the request into a spec, calls engine tools, reads results and explains. It never measures or places controls itself.
-3. **The LLM never invents rule numbers.** Control spacing, winning times per class, difficulty levels etc. live in a config file sourced from IOF and SSL documents.
+3. **The LLM never invents rule numbers.** Control spacing, winning times per class, difficulty levels etc. live in a config file sourced from IOF and SSL documents, or in case of training user can set their own ruleset.
 4. **License is AGPL-3.0-or-later** (D1), because we use ocad2geojson. Only add AGPL-compatible dependencies (MIT, BSD, Apache-2.0 are fine). Keep a visible "Source code" link in the running app.
 
 ## Architecture

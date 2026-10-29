@@ -710,3 +710,73 @@ Features that need a long time of tuning in real use ship in the published app b
 
 - The source of experimental features is public anyway (AGPL, and it's in the bundle); the switch only keeps them out of the way.
 - When a feature is ready, its `useExperimentalFeatures()` checks go and it becomes a normal `feat`.
+
+---
+
+## D25: Courses for training, with their own rules; contour-map training first
+
+**Date:** 2026-10-29
+**Status:** Proposed
+
+### Decision
+
+Every course request has a **purpose**: `competition` (the default) or `training`.
+
+- **Competition** stays exactly as it is: IOF and SSL rules, values with sources, rule checks as today.
+- **Training** has its own **training rules**. Ratamestari gives defaults, and the user can change any of them. They cover:
+  - the target time or length,
+  - the leg-length mix,
+  - the control difficulty range,
+  - which rule checks run, and whether a finding is advice or an error.
+- Routing still blocks forbidden and impassable areas in training, as the map says.
+- A training course has a **training kind**. The first is **contour-map training**. Other kinds can be added later as further kinds with their own defaults.
+
+**Contour-map training** is for maps whose value is in the relief:
+
+- **Remote-sensed maps**, generated from LiDAR and aerial or satellite data (e.g. with Karttapullautin) and maybe edited in OCAD, but never field-checked.
+- **Reduced maps**: a full orienteering map printed with only some symbols.
+
+How it works:
+
+- **Two symbol sets per map.** The engine reads every symbol for routing, avoidance and the mapped area. Only the **printed set** is drawn on the map and PDF, and **controls go only on printed features**.
+  - The remote-sensed preset prints everything.
+  - The reduced preset starts from a contour-map set (contours, form lines, slope lines, water, forbidden areas), and the user adds or removes symbols.
+- **Contour-detail quality.** Technical areas (D19) are found from how much the contours bend per hectare (count and sharpness of bends, knolls and re-entrants), instead of the density of demanding point features.
+- **Contour sites with a clarity score.** Knolls, depressions, spurs and re-entrants from contours and form lines get a continuous clarity (size, bend angle, how many contours show the form) instead of fixed yes/no limits. The training rules set which clarity is wanted.
+- **Leg style.** Long legs along or across a slope that end at one clear contour feature, between technical legs in detailed hillsides.
+
+Where the values live:
+
+- Training defaults live in `packages/rules`. They cite a new source, `Ratamestari defaults`, and are always flagged `interpretation`.
+- The user's own training rules are stored in the browser (`Storage`), and every course records the training rules it was set with (D12).
+- Training ships behind the experimental switch (D24) until it is tuned.
+
+### Why
+
+- Clubs train on maps and in forms that competition rules don't cover. Contour-only or reduced maps are a common training form
+- Remote-sensed maps make it possible for individuals or clubs to do orienteering trainigns where there are no maps made.
+- The engine finds areas from point-feature density, which these maps barely have. On one remote-sensed map, a long-distance H21 request found one technical area and set a 1-control, 19-minute course against a 90-minute target, with a mean terrain quality of 0.11.
+- No IOF or SSL document gives values for training courses. The coach knows the group's needs, so they should be able to set them. A default of ours, named as such, is honest. Stretching a competition rule to cover training would not be.
+- A runner can only navigate by what is printed. A control on a boulder that a reduced map hides would be unfair.
+- Two presets of one mechanism avoid two pipelines that drift apart.
+
+### Alternatives considered
+
+- **A `training` event level next to national and SM level:** mixes "how strict" with "how big the event is". Every table keyed by level, winning times included, would need training values that no source has.
+- **A map-type setting without a purpose:** a contour map would still be checked against competition rules it can't meet.
+- **Fixed training values without user tuning:** our defaults would become rules nobody has written down.
+- **Two separate pipelines for remote-sensed and reduced maps:** duplicated code, and fixes would land in only one of them.
+- **Tuning the ISOM thresholds down:** point-feature density still can't see slope detail.
+- **Reading LiDAR elevation directly:** better relief, but needs a new input.
+
+### Consequences
+
+- Hard rule 3 is reworded: rule numbers come from IOF and SSL documents. Training defaults are our own, cite `Ratamestari defaults`, and the user can change them.
+- The spec (Zod) gets `purpose`, `trainingKind` and the training rules.
+- The assistant can pick the purpose and training kind and pass numbers the user said ("a 60-minute course"). It never makes up training values (D2), and it can report contour-detail statistics as words (D17).
+- New engine module for contour detail. `site-quality.ts` and `areas.ts` take the quality measure from the training kind. Candidate sites are limited to the printed set.
+- The map view, print page and PDF draw only the printed set (the `renderSvg` object filter). Layers can show the full map for reference.
+- Control descriptions (D8) are unchanged. The difficulty assessment uses the training rules' range.
+- Settings get a training-rules editor with "Reset to defaults". All its text goes in the message catalogues (D14).
+- `docs/rules/course-setting.md` gets a training section, marked as our defaults, not a digest.
+- PDF and image maps (D22) can use contour-map training later.
