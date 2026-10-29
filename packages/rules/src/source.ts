@@ -6,6 +6,8 @@ export const sourceDocumentSchema = z.enum([
   'IOF Control Descriptions 2024',
   'Lajisäännöt 2026',
   'Ratamestarikirja',
+  // Our own defaults where no IOF or SSL document gives a value (training, D25).
+  'Ratamestari defaults',
 ])
 
 export const sourceSchema = z.object({
@@ -31,5 +33,9 @@ export const iofDescriptions = (section: string): Source => ({
 export const lajisaannot = (section: string): Source => ({ document: 'Lajisäännöt 2026', section })
 export const ratamestarikirja = (section: string): Source => ({
   document: 'Ratamestarikirja',
+  section,
+})
+export const ratamestariDefaults = (section: string): Source => ({
+  document: 'Ratamestari defaults',
   section,
 })
