@@ -2,14 +2,13 @@ import type { LocalPoint } from '@ratamestari/core'
 import {
   ACUTE_ANGLE,
   COURSE_LINE_CROSSING,
-  CROWDING,
-  FORMAT_QUALITY,
   SECTION_FILL,
   controlSpacingForScale,
   type LegLengthTarget,
 } from '@ratamestari/rules'
 import type { ControlSiteCandidate } from './control-sites'
 import { crossingSeverity } from './course-metrics'
+import { courseProfileOf } from './course-profile'
 import type { PlanningContext } from './course-search'
 import { difficultyInCourse } from './flag-side'
 import { distanceToSegment } from './polyline'
@@ -34,6 +33,8 @@ export interface SectionRequest {
   readonly afterExit: LocalPoint | null
   // The stop before the entry, when it is already set, for the angle at the entry.
   readonly beforeEntry?: LocalPoint | null
+  // The first leg may walk in from a start outside the band, as far as this.
+  readonly firstLegMaxMetres?: number
   // A smaller search, for rebuilding a few controls: at most this many controls.
   readonly rebuildingControls?: number
 }
@@ -89,8 +90,9 @@ export function fillSection(
     request.rebuildingControls === undefined ? SECTION_FILL : SECTION_FILL.rebuild
   const [minDifficulty, maxDifficulty] = spec.target.siteDifficulty
   const spacing = controlSpacingForScale(spec.printScale)
-  const crowdingRule = CROWDING[spec.format]
-  const mix = mixWithin(FORMAT_QUALITY[spec.format].legLengths, request.legBandMetres)
+  const profile = courseProfileOf(spec)
+  const crowdingRule = profile.crowding
+  const mix = mixWithin(profile.quality.legLengths, request.legBandMetres)
   const [shortestLeg, longestLeg] = request.legBandMetres
   const positionOf = (i: number) => pool[i]!.position
   const entry = positionOf(request.entry)
@@ -126,7 +128,7 @@ export function fillSection(
     site: number,
     to: LocalPoint,
     isExit: boolean,
-    allowsCrossings = false,
+    allowsCrossings = profile.allowsCrossingLegs,
   ) => {
     const stops = stopsOf(path)
     const from = stops[stops.length - 1]!
@@ -205,7 +207,10 @@ export function fillSection(
   const crossingCloses: { path: readonly number[]; total: number; cost: number }[] = []
   const closings: { path: readonly number[]; total: number }[] = []
   // The time of a clean last leg from the end of `path` to the exit, or null if there is none.
-  const closingSeconds = (path: readonly number[], allowsCrossings = false): number | null => {
+  const closingSeconds = (
+    path: readonly number[],
+    allowsCrossings = profile.allowsCrossingLegs,
+  ): number | null => {
     const stops = stopsOf(path)
     const from = stops[stops.length - 1]!
     const last = path.length === 0 ? request.entry : path[path.length - 1]!
@@ -254,7 +259,11 @@ export function fillSection(
       const reachable = allowed.flatMap(i => {
         if (used.has(i)) return []
         const metres = distanceBetween(from, positionOf(i))
-        if (metres < shortestLeg || metres > longestLeg) return []
+        const maxMetres =
+          state.path.length === 0
+            ? Math.max(longestLeg, request.firstLegMaxMetres ?? 0)
+            : longestLeg
+        if (metres < shortestLeg || metres > maxMetres) return []
         const seconds = context.straightSecondsBetween(lastStop, i)
         if (!Number.isFinite(seconds)) return []
         if (state.elapsed + seconds + toExit[i]! > latest) return []

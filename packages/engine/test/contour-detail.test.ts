@@ -5,7 +5,7 @@ import { contourDetailQuality } from '../src/contour-detail'
 import { buildTerrain } from '../src/terrain'
 import { controlSite, feature, line, SQUARE_KILOMETRE } from './fixtures'
 
-const rule = TRAINING_DEFAULTS.contour.middle.contourDetail
+const rule = TRAINING_DEFAULTS.contour.controlPicking.contourDetail
 
 const terrainOf = (features: MapFeature[]) =>
   buildTerrain(features, SQUARE_KILOMETRE, { restrictToMappedArea: false })

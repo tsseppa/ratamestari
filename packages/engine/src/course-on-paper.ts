@@ -72,7 +72,7 @@ export function* setCourseOnPaperSteps(
       paper: size,
       printScale: spec.printScale,
       competitionCentre: spec.competitionCentre,
-      descriptionRows: expectedControlCount(spec.format) + DESCRIPTION_BOX.rowsBesidesControls,
+      descriptionRows: expectedControlCount(spec) + DESCRIPTION_BOX.rowsBesidesControls,
       peripheralSize: spec.peripheralSize ?? null,
       mustHold: keptPositions,
       training: spec.training ?? null,
@@ -113,7 +113,7 @@ function* setCourseInFrameSteps(
 ): Search {
   const printArea = placeBoxesInFrame(terrain, sites, frame, {
     competitionCentre: spec.competitionCentre,
-    descriptionRows: expectedControlCount(spec.format) + DESCRIPTION_BOX.rowsBesidesControls,
+    descriptionRows: expectedControlCount(spec) + DESCRIPTION_BOX.rowsBesidesControls,
     peripheralSize: spec.peripheralSize ?? null,
   })
   if (!printArea) return null

@@ -32,9 +32,9 @@ describe('withPurpose', () => {
 })
 
 describe('trainingMinutesOf', () => {
-  it('uses the training default for the distance until the user sets their own', () => {
-    expect(trainingMinutesOf({ ...REQUEST, format: 'middle' })).toBe(
-      TRAINING_DEFAULTS.contour.middle.winningTime.targetMinutes,
+  it('uses the training default for the style until the user sets their own', () => {
+    expect(trainingMinutesOf({ ...REQUEST, trainingStyle: 'longLegs' })).toBe(
+      TRAINING_DEFAULTS.contour.longLegs.winningTime.targetMinutes,
     )
     expect(trainingMinutesOf({ ...REQUEST, trainingMinutes: 50 })).toBe(50)
   })

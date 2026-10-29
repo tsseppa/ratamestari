@@ -1,6 +1,7 @@
-import { ACUTE_ANGLE, FORMAT_TEMPLATES, SECTION_FILL } from '@ratamestari/rules'
+import { ACUTE_ANGLE, SECTION_FILL } from '@ratamestari/rules'
 import type { LocalPoint } from '@ratamestari/core'
 import { FEATURELESS_SITE_ID, type ControlSiteCandidate } from './control-sites'
+import { templateOf } from './course-profile'
 import type { PlanningContext } from './course-search'
 import type { Random } from './random'
 import { angleAt, fillSection, type SectionFill } from './section-fill'
@@ -148,7 +149,7 @@ export function fillAroundLocks(
         exit: home ?? stops[k + 1]!,
         budgetSeconds: budget,
         allowed,
-        legBandMetres: FORMAT_TEMPLATES[context.spec.format].technicalLegMetres,
+        legBandMetres: templateOf(context.spec).technicalLegMetres,
         fixedStops: [
           ...lockedPositions.filter((_, j) => j !== k),
           ...order.filter(i => i !== entry).map(positionOf),

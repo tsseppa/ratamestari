@@ -174,8 +174,10 @@ export const fi: Messages = {
     purposes: { competition: 'Kisarata', training: 'Harjoitusrata' },
     trainingKind: 'Harjoituksen laji',
     trainingKinds: { contour: 'Käyräkarttaharjoitus' },
+    trainingStyle: 'Harjoituksen tyyppi',
+    trainingStyles: { controlPicking: 'rastinotto', longLegs: 'pitkät välit' },
     contourTrainingNote:
-      'Käyräkarttaharjoituksessa rata viedään rinteisiin, joissa käyrät ovat yksityiskohtaisimpia. Voittoajan valitset itse; muut arvot ovat Ratamestarin oletuksia, eivät IOF:n tai SSL:n sääntöjä.',
+      'Voittoajan valitset itse; muut arvot ovat Ratamestarin oletuksia, eivät IOF:n tai SSL:n sääntöjä.',
     trainingMinutes: 'Harjoituksen voittoaika minuutteina',
     beforeTrainingMinutes: ', ',
     distance: 'Matka',
@@ -386,6 +388,7 @@ export const fi: Messages = {
     trainingCourse: 'Harjoitus',
     eventLevels: { national: 'Kansallinen kilpailu', finnishChampionship: 'SM-kilpailu' },
     formats: { long: 'Pitkä matka', middle: 'Keskimatka' },
+    trainingStyles: { controlPicking: 'Rastinotto', longLegs: 'Pitkät välit' },
   },
   findings: {
     texts: findingTexts,

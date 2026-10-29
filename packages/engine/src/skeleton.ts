@@ -1,7 +1,8 @@
 import type { LocalPoint } from '@ratamestari/core'
-import { FORMAT_QUALITY, FORMAT_TEMPLATES, SKELETON_SEARCH } from '@ratamestari/rules'
+import { SKELETON_SEARCH } from '@ratamestari/rules'
 import type { TechnicalArea } from './areas'
 import { convexHullArea } from './course-metrics'
+import { qualityProfileOf, templateOf } from './course-profile'
 import type { PlanningContext, SearchProgress } from './course-search'
 import { difficultyInCourse } from './flag-side'
 import { CONTROL_CIRCLE_FOOTPRINT_RADIUS_METERS } from './section-fill'
@@ -78,7 +79,7 @@ export function* planSkeletonSteps(
   random: Random,
 ): SkeletonPlanning {
   const { spec, pool, toFinish, quality, targetSeconds, finish } = context
-  const template = FORMAT_TEMPLATES[spec.format]
+  const template = templateOf(spec)
   const { weights } = SKELETON_SEARCH
   const [minDifficulty, maxDifficulty] = spec.target.siteDifficulty
   const inDifficultyRange = (i: number) => {
@@ -130,7 +131,7 @@ export function* planSkeletonSteps(
     return crossings
   }
   const spreadPenalty = (points: readonly LocalPoint[]) => {
-    const target = FORMAT_QUALITY[spec.format].spreadTarget
+    const target = qualityProfileOf(spec).spreadTarget
     const spread = usableAreaSquareMetres > 0 ? convexHullArea(points) / usableAreaSquareMetres : 0
     return Math.max(0, target - spread) / target
   }
@@ -276,6 +277,7 @@ export function* planSkeletonSteps(
       i =>
         used.has(i) ||
         (spec.format === 'middle' &&
+          !spec.training &&
           !spec.startDistanceFromFinishMeters &&
           hull !== null &&
           isInsidePolygon(pool[i]!.position, hull)),

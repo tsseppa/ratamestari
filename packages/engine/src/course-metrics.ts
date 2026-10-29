@@ -150,17 +150,21 @@ export function alternation(stops: readonly LocalPoint[]): Metric {
   }
 }
 
-export function directionChanges(stops: readonly LocalPoint[], targetRate: number): Metric {
+export function directionChanges(
+  stops: readonly LocalPoint[],
+  targetRate: number,
+  minDegrees = COURSE_SHAPE.directionChangeDegrees,
+): Metric {
   const turns = signedTurns(stops)
   const sharpestTurn = 180 - ACUTE_ANGLE.warningBelowDegrees
   const rate =
     turns.filter(turn => {
       const angle = Math.abs(turn)
-      return angle > COURSE_SHAPE.directionChangeDegrees && angle <= sharpestTurn
+      return angle > minDegrees && angle <= sharpestTurn
     }).length / Math.max(1, turns.length)
   return {
     value: Math.max(0, targetRate - rate),
-    note: `${Math.round(rate * 100)}% of controls turn ${COURSE_SHAPE.directionChangeDegrees}–${sharpestTurn}°`,
+    note: `${Math.round(rate * 100)}% of controls turn ${minDegrees}–${sharpestTurn}°`,
   }
 }
 
@@ -263,7 +267,11 @@ export function measureCourseShape(
     ring: ring(stops),
     legLengths: legLengthDistribution(stops, profile.legLengths),
     alternation: alternation(stops),
-    directionChanges: directionChanges(stops, profile.directionChangeRateTarget),
+    directionChanges: directionChanges(
+      stops,
+      profile.directionChangeRateTarget,
+      profile.directionChangeMinDegrees,
+    ),
     firstLeg: firstLegTowardsFinish(stops),
     spread: spread(stops, mappedAreaWithin(terrain, printExtent), profile.spreadTarget),
   }

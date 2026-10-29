@@ -61,6 +61,7 @@ import {
   courseRequestSchema,
   courseTargetForPurpose,
   trainingRulesFor,
+  courseFormatOf,
   printScaleFor,
   DEFAULT_CONTOUR_INTERVAL_METERS,
   type CourseClass,
@@ -137,11 +138,12 @@ function specFor(
   const validRequest = courseRequestSchema.parse(request)
   const target = courseTargetForPurpose(validRequest)
   if (!target) return null
+  const format = courseFormatOf(validRequest)
   return {
     target,
     training: trainingRulesFor(validRequest),
-    format: validRequest.format,
-    printScale: printScaleFor(printScaleChoice, validRequest.format),
+    format,
+    printScale: printScaleFor(printScaleChoice, format),
     competitionCentre,
     seed,
     paceSecondsPerKm,

@@ -79,6 +79,8 @@ export const legLengthTargetSchema = citedSchema.extend({
 export const formatQualityProfileSchema = citedSchema.extend({
   legLengths: legLengthTargetSchema,
   directionChangeRateTarget: z.number().min(0).max(1),
+  // The least turn at a control that counts as a change of direction, if not COURSE_SHAPE's.
+  directionChangeMinDegrees: z.number().min(0).max(180).optional(),
   spreadTarget: z.number().min(0).max(1),
 })
 

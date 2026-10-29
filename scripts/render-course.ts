@@ -37,6 +37,8 @@ import {
   TECHNICAL_AREAS,
   courseTargetForPurpose,
   trainingRulesFor,
+  courseFormatOf,
+  DEFAULT_TRAINING_STYLE,
   type CourseRequest,
 } from '@ratamestari/rules'
 
@@ -65,6 +67,7 @@ const { values } = parseArgs({
     skeleton: { type: 'boolean', default: false },
     purpose: { type: 'string', default: 'competition' },
     minutes: { type: 'string' },
+    style: { type: 'string' },
     'contour-interval': { type: 'string' },
   },
 })
@@ -79,7 +82,13 @@ const request: CourseRequest = courseRequestSchema.parse({
   skillLetter: values.letter,
   purpose: values.purpose,
   ...(values.minutes && { trainingMinutes: Number(values.minutes) }),
+  ...(values.style && { trainingStyle: values.style }),
 })
+const format = courseFormatOf(request)
+const courseLabel =
+  request.purpose === 'training'
+    ? `training-${request.trainingStyle ?? DEFAULT_TRAINING_STYLE}`
+    : request.format
 const [paceMinutes = '5', paceSeconds = '00'] = values.pace.split(':')
 const paceSecondsPerKm = Number(paceMinutes) * 60 + Number(paceSeconds)
 const seed = Number(values.seed)
@@ -111,10 +120,10 @@ const course = setCourseOnPaper(
   sites,
   {
     target,
-    format: request.format,
+    format,
     printScale: printScaleFor(
       values.scale === 'auto' ? 'auto' : printScaleSchema.parse(Number(values.scale)),
-      request.format,
+      format,
     ),
     competitionCentre: centre,
     seed,
@@ -134,7 +143,7 @@ if (course.printArea) {
 }
 if (values.legs) printLegs(course)
 const sheet = descriptionSheet(course, {
-  title: `${request.format} ${values.class}${values.letter}`,
+  title: `${courseLabel} ${values.class}${values.letter}`,
   courseName: `${values.class}${values.letter}`,
 })
 printDescriptions()
@@ -156,7 +165,7 @@ if (values.xml) {
 
 const outPath =
   values.out ??
-  join(RENDERS_FOLDER, `${request.format}-${values.class}${values.letter}-seed${seed}.png`)
+  join(RENDERS_FOLDER, `${courseLabel}-${values.class}${values.letter}-seed${seed}.png`)
 mkdirSync(RENDERS_FOLDER, { recursive: true })
 writeFileSync(outPath, renderPng(course))
 console.log(`Wrote ${outPath}`)
@@ -190,7 +199,7 @@ function middleOfMappedArea(): LocalPoint {
 function printSummary(c: Course, seconds: number) {
   const minutes = (s: number) => (s / 60).toFixed(1)
   console.log(
-    `${request.format} ${values.class}${values.letter} seed ${seed}: ${c.controls.length} controls, ` +
+    `${courseLabel} ${values.class}${values.letter} seed ${seed}: ${c.controls.length} controls, ` +
       `${minutes(c.estimatedSeconds)}/${minutes(c.targetSeconds)} min, ` +
       `${((c.lengthMeters ?? 0) / 1000).toFixed(1)} km, search ${seconds.toFixed(1)} s`,
   )
@@ -280,7 +289,7 @@ function areaOverlay(c: Course): string {
   const areas = findTechnicalAreas(
     onPaper,
     quality,
-    training?.technicalAreas ?? TECHNICAL_AREAS[request.format],
+    training?.technicalAreas ?? TECHNICAL_AREAS[format],
     terrain.grid,
     paceSecondsPerKm,
   )
@@ -312,7 +321,7 @@ function skeletonOverlay(c: Course): string {
   const planStarted = performance.now()
   const plan = planCourse(terrain, sites, {
     target: target!,
-    format: request.format,
+    format,
     printScale: area.scale,
     competitionCentre: centre,
     seed,

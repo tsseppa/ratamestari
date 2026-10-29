@@ -3,6 +3,7 @@ import { localExtent, localPoint, type MapFeature } from '@ratamestari/core'
 import { courseTargetFor, TRAINING_DEFAULTS } from '@ratamestari/rules'
 import { findControlSites } from '../src/control-sites'
 import { planCourse, type CourseSpec } from '../src/course-search'
+import { CONTROL_CIRCLE_FOOTPRINT_RADIUS_METERS } from '../src/section-fill'
 import { buildTerrain } from '../src/terrain'
 import { feature, point } from './fixtures'
 
@@ -74,8 +75,21 @@ describe('planSkeleton', { timeout: SETUP_TIMEOUT_MS }, () => {
     expect(again).toEqual(first)
   })
 
+  it('keeps the last control before the run-in clear of the start circle', () => {
+    for (const seed of [1, 2, 3]) {
+      const { context, skeleton } = planCourse(terrain, sites, spec({ seed }))!
+      const runIn = skeleton!.sections.at(-1)!
+      expect(runIn.area).toBeNull()
+      const [sx, sy] = context.pool[skeleton!.start]!.position
+      const [x, y] = context.pool[runIn.entry]!.position
+      expect(Math.hypot(x - sx, y - sy)).toBeGreaterThanOrEqual(
+        2 * CONTROL_CIRCLE_FOOTPRINT_RADIUS_METERS,
+      )
+    }
+  })
+
   it("finds technical areas by the training rules' area rule", () => {
-    const training = TRAINING_DEFAULTS.contour.middle
+    const training = TRAINING_DEFAULTS.contour.controlPicking
     const unreachable = { ...training.technicalAreas, minPoints: sites.length + 1 }
     const plan = planCourse(
       terrain,

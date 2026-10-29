@@ -8,6 +8,8 @@ import {
   sexSchema,
   skillLetterSchema,
   trainingKindSchema,
+  trainingStyleSchema,
+  DEFAULT_TRAINING_STYLE,
   type CourseRequest,
   ACUTE_ANGLE,
 } from '@ratamestari/rules'
@@ -273,18 +275,18 @@ function TrainingSentence({
         </select>{' '}
         <select
           className="request-token"
-          aria-label={m.distance}
-          value={request.format}
-          onChange={e => change({ format: formatSchema.parse(e.target.value) })}
+          aria-label={m.trainingStyle}
+          value={request.trainingStyle ?? DEFAULT_TRAINING_STYLE}
+          onChange={e => change({ trainingStyle: trainingStyleSchema.parse(e.target.value) })}
         >
-          {formatSchema.options.map(format => (
-            <option key={format} value={format}>
-              {m.formats[format]}
+          {trainingStyleSchema.options.map(style => (
+            <option key={style} value={style}>
+              {m.trainingStyles[style]}
             </option>
           ))}
         </select>
         <TrainingMinutes
-          key={request.format}
+          key={request.trainingStyle}
           minutes={trainingMinutesOf(request)}
           onChange={trainingMinutes => change({ trainingMinutes })}
         />

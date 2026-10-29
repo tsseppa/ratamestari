@@ -12,11 +12,14 @@ import {
 
 export const skillLetterSchema = z.enum(['E', 'A', 'B', 'C'])
 export const coursePurposeSchema = z.enum(['competition', 'training'])
+// The kind of training course, on any map (D26).
+export const trainingStyleSchema = z.enum(['controlPicking', 'longLegs'])
 
 export type CoursePurpose = z.infer<typeof coursePurposeSchema>
+export type TrainingStyle = z.infer<typeof trainingStyleSchema>
 
-// Without a purpose the course is for competition. A training course may ask for its own winning
-// time; without one it keeps the class's time at the event level (D25).
+// Without a purpose the course is for competition. A training course has a style and may ask for
+// its own winning time; without them it gets the training defaults (D25, D26).
 export const courseRequestSchema = z.object({
   eventLevel: eventLevelSchema,
   format: formatSchema,
@@ -25,6 +28,7 @@ export const courseRequestSchema = z.object({
   skillLetter: skillLetterSchema.default('A'),
   purpose: coursePurposeSchema.optional(),
   trainingMinutes: z.number().positive().optional(),
+  trainingStyle: trainingStyleSchema.optional(),
 })
 
 export const skillColourSchema = z.enum([

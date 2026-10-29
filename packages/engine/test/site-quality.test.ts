@@ -69,7 +69,7 @@ describe('siteQuality', () => {
   const sites = [...cluster(100, 100, 20), site(900, 900)]
 
   it('measures contour detail on contour training', () => {
-    const training = TRAINING_DEFAULTS.contour.middle
+    const training = TRAINING_DEFAULTS.contour.controlPicking
     expect(siteQuality(sites, terrain, training)).toEqual(
       contourDetailQuality(sites, terrain, training.contourDetail),
     )

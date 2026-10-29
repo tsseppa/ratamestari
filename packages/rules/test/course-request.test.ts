@@ -35,6 +35,7 @@ describe('courseRequestSchema', () => {
       'skillLetter',
       'purpose',
       'trainingMinutes',
+      'trainingStyle',
     ])
   })
 })

@@ -3,12 +3,8 @@ import {
   ACUTE_ANGLE,
   COURSE_LINE_CROSSING,
   COURSE_SHAPE,
-  CROWDING,
   FOREST_CONTROL_SPACING,
-  FORMAT_TEMPLATES,
   TECHNICAL_AREAS,
-  FORMAT_QUALITY,
-  SCORE_WEIGHTS,
   SECTION_FILL,
   controlSpacingForScale,
   REFERENCE_PACE_SECONDS_PER_KM,
@@ -16,6 +12,7 @@ import {
   type Format,
   type ScoreTermName,
   type TrainingRules,
+  expectedTrainingLegCount,
 } from '@ratamestari/rules'
 import type { ControlSiteCandidate, TechnicalDifficulty } from './control-sites'
 import { difficultyInCourse, flagSideFor, type FlagSide } from './flag-side'
@@ -49,6 +46,7 @@ import {
   type PrintFrame,
 } from './print-area'
 import { findTechnicalAreas, type TechnicalArea } from './areas'
+import { courseProfileOf, templateOf } from './course-profile'
 import {
   angleAt,
   CONTROL_CIRCLE_FOOTPRINT_RADIUS_METERS,
@@ -143,8 +141,9 @@ const LEG_PROFILES: Readonly<Record<Format, LegProfile>> = {
   long: { longLegShare: 0.3, longLeg: [0.06, 0.12], shortLeg: [0.015, 0.04] },
   middle: { longLegShare: 0, longLeg: [0.02, 0.07], shortLeg: [0.02, 0.07] },
 }
-export function expectedControlCount(format: Format): number {
-  const { longLegShare, longLeg, shortLeg } = LEG_PROFILES[format]
+export function expectedControlCount(spec: Pick<CourseSpec, 'format' | 'training'>): number {
+  if (spec.training) return expectedTrainingLegCount(spec.training)
+  const { longLegShare, longLeg, shortLeg } = LEG_PROFILES[spec.format]
   const mean = (range: readonly [number, number]) => (range[0] + range[1]) / 2
   const meanLegShare = longLegShare * mean(longLeg) + (1 - longLegShare) * mean(shortLeg)
   return Math.ceil(1 / meanLegShare)
@@ -409,6 +408,10 @@ function fillSkeleton(
         budgetSeconds: section.budgetSeconds,
         allowed,
         legBandMetres: section.legBandMetres,
+        ...(context.spec.training &&
+          section.entry === skeleton.start && {
+            firstLegMaxMetres: templateOf(context.spec).connectingLegMetres[1],
+          }),
         fixedStops: [...new Set([...anchors, ...order])]
           .filter(i => i !== section.entry)
           .map(positionOf),
@@ -788,8 +791,12 @@ function createEvaluation(
   usableAreaSquareMetres: number,
 ) {
   const spacing = controlSpacingForScale(spec.printScale)
-  const weights = SCORE_WEIGHTS[spec.format]
-  const profile = FORMAT_QUALITY[spec.format]
+  const {
+    weights,
+    quality: profile,
+    crowding: crowdingRule,
+    allowsCrossingLegs,
+  } = courseProfileOf(spec)
   const [minDifficulty, maxDifficulty] = spec.target.siteDifficulty
 
   const score = (startIndex: number, order: readonly number[]): ScoredCourse => {
@@ -858,7 +865,9 @@ function createEvaluation(
       b,
       severity: crossingSeverity(stops[a]!, stops[a + 1]!, stops[b]!, stops[b + 1]!, stops),
     }))
-    const badCrossings = crossings.filter(c => c.severity > COURSE_LINE_CROSSING.acceptableSeverity)
+    const badCrossings = allowsCrossingLegs
+      ? []
+      : crossings.filter(c => c.severity > COURSE_LINE_CROSSING.acceptableSeverity)
     badCrossings.forEach(({ a, b }) => found('courseLineCrossings', a, a + 1, b, b + 1))
     const crossingSeverityTotal = crossings.reduce((sum, c) => sum + c.severity, 0)
     const overlapping = overlappingCircles(stops)
@@ -1019,7 +1028,7 @@ function createEvaluation(
       closeness: asTerm('closeness', closeness(stops)),
       crowding: asTerm(
         'crowding',
-        crowding(stops, CROWDING[spec.format].radiusMetres, CROWDING[spec.format].maxControls),
+        crowding(stops, crowdingRule.radiusMetres, crowdingRule.maxControls),
       ),
       reversals: asTerm('reversals', reversals(stops)),
       ring: asTerm('ring', ring(stops)),
@@ -1027,7 +1036,11 @@ function createEvaluation(
       alternation: asTerm('alternation', alternation(stops)),
       directionChanges: asTerm(
         'directionChanges',
-        directionChanges(stops, profile.directionChangeRateTarget),
+        directionChanges(
+          stops,
+          profile.directionChangeRateTarget,
+          profile.directionChangeMinDegrees,
+        ),
       ),
       firstLeg: asTerm('firstLeg', firstLegTowardsFinish(stops)),
       spread: asTerm('spread', spread(stops, usableAreaSquareMetres, profile.spreadTarget)),
@@ -1290,7 +1303,7 @@ function rebuildWindow(
       exit,
       budgetSeconds: budget,
       allowed,
-      legBandMetres: FORMAT_TEMPLATES[context.spec.format].technicalLegMetres,
+      legBandMetres: templateOf(context.spec).technicalLegMetres,
       fixedStops: stopPositions.filter((_, k) => k !== first && (k < first + 1 || k > last + 1)),
       fixedLegs: stopPositions
         .slice(1)

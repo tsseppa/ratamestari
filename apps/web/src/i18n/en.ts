@@ -176,8 +176,10 @@ export const en = {
     purposes: { competition: 'Race', training: 'Training' },
     trainingKind: 'Kind of training',
     trainingKinds: { contour: 'Contour training' },
+    trainingStyle: 'Training style',
+    trainingStyles: { controlPicking: 'control picking', longLegs: 'long legs' },
     contourTrainingNote:
-      'Contour training sends the course to the hillsides with the most contour detail. The winning time is yours to set; the other values are Ratamestari’s defaults, not IOF or SSL rules.',
+      'The winning time is yours to set; the other values are Ratamestari’s defaults, not IOF or SSL rules.',
     trainingMinutes: 'Training winning time in minutes',
     beforeTrainingMinutes: ', ',
     distance: 'Distance',
@@ -408,6 +410,7 @@ export const en = {
       finnishChampionship: 'Finnish championship (SM) final',
     },
     formats: { long: 'Long distance', middle: 'Middle distance' },
+    trainingStyles: { controlPicking: 'Control picking', longLegs: 'Long legs' },
   },
   findings: {
     texts: findingTexts,

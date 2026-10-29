@@ -101,6 +101,13 @@ describe('course metrics', () => {
     expect(directionChanges(course([0, 0], [500, 0], [1000, 50], [1500, 0]), 0.75).value).toBe(0.75)
   })
 
+  it('counts gentle bends as changes of direction when the threshold is lower', () => {
+    const gentle = course([0, 0], [500, 0], [970, 170], [1440, 0], [1910, 170])
+    expect(directionChanges(gentle, 0.75).value).toBe(0.75)
+    expect(directionChanges(gentle, 0.75, 15).value).toBe(0)
+    expect(directionChanges(gentle, 0.75, 15).note).toMatch(/^100% of controls turn 15–/)
+  })
+
   it('notices a first leg heading straight for the finish', () => {
     expect(firstLegTowardsFinish(course([0, 0], [300, 10], [600, 600], [900, 0])).value).toBe(1)
     expect(firstLegTowardsFinish(square).value).toBe(0)

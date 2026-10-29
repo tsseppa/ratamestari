@@ -12,6 +12,7 @@ import {
   type SearchProgress,
 } from '@ratamestari/engine'
 import {
+  courseFormatOf,
   printScaleFor,
   type CourseRequest,
   type IsomCode,
@@ -64,7 +65,7 @@ import {
   type SymbolCorrections,
 } from './symbol-corrections'
 import { track } from './analytics'
-import { courseNameOf } from './course-labels'
+import { courseKindFileKeyOf, courseNameOf } from './course-labels'
 import { createEngine, progressCallback } from './engine'
 import type { CheckedCourse, ContourInterval, ImportedCourseSummary } from './engine.worker'
 import type { CourseFileCheck } from './CheckPanel'
@@ -165,7 +166,7 @@ function frameFor(
   request: CourseRequest,
 ) {
   if (!placed || paper === 'auto') return null
-  const scale = printScaleFor(printScale, request.format)
+  const scale = printScaleFor(printScale, courseFormatOf(request))
   return printFrameAround(placed.centre, paper, placed.orientation, scale)
 }
 
@@ -553,7 +554,7 @@ export function App() {
         track('course-set', {
           map: isSampleMap ? 'sample' : 'own',
           level: nextRequest.purpose === 'training' ? 'training' : nextRequest.eventLevel,
-          format: nextRequest.format,
+          format: courseFormatOf(nextRequest),
           courseClass: courseNameOf(nextRequest, 'training'),
           keptControls: aroundLeg ? 2 : (locks?.controls.length ?? 0),
         })
@@ -1253,7 +1254,7 @@ export function App() {
                   course={course}
                   frame={printFrame}
                   onChooseArea={startPlacingFrame}
-                  format={request.format}
+                  format={courseFormatOf(request)}
                   paper={paper}
                   printScale={printScale}
                   isDisabled={isGenerating || isEditing}
@@ -1452,7 +1453,7 @@ export function App() {
                     course,
                     overprintLayout,
                     descriptionBox.sheet,
-                    `${courseNameOf(request, messages.labels.trainingCourse)}-${request.format}.pdf`,
+                    `${courseNameOf(request, messages.labels.trainingCourse)}-${courseKindFileKeyOf(request)}.pdf`,
                     peripheral,
                     scaleLine,
                   )
