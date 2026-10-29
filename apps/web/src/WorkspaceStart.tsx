@@ -128,45 +128,86 @@ interface ContourIntervalLineProps {
 export function ContourIntervalLine({ interval, onChange }: ContourIntervalLineProps) {
   const m = useMessages().workspace
   const format = useFormat()
-  const [typed, setTyped] = useState(String(interval.meters))
+  const [typed, setTyped] = useState<string | null>(null)
   const commit = () => {
-    const meters = contourIntervalFrom(typed)
-    if (meters === null) setTyped(String(interval.meters))
-    else if (meters !== interval.meters) onChange(meters)
+    const meters = typed === null ? null : contourIntervalFrom(typed)
+    setTyped(null)
+    if (meters !== null && meters !== interval.meters) onChange(meters)
   }
   const source = interval.isSetByUser
     ? m.contourIntervalSetByYou
     : interval.readFromMap === null
-      ? m.contourIntervalStandard(format.metres(interval.meters))
+      ? m.contourIntervalStandard(format.contourInterval(interval.meters))
       : m.contourIntervalFromMap
   return (
     <div className="panel-line">
       <span className="panel-line-label">{m.contourIntervalLine}</span>
       <span className="panel-line-value">
-        <span>
-          <input
-            className="request-token"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            step="any"
-            aria-label={m.contourIntervalLine}
-            value={typed}
-            onChange={e => setTyped(e.target.value)}
-            onBlur={commit}
-            onKeyDown={e => {
-              if (e.key === 'Enter') commit()
-            }}
-          />
-          {format.metresSuffix}
-        </span>
-        {interval.isSetByUser && (
-          <button type="button" className="panel-line-action" onClick={() => onChange(null)}>
-            {m.contourIntervalReset}
-          </button>
+        {typed === null ? (
+          <span>{format.contourInterval(interval.meters)}</span>
+        ) : (
+          <span>
+            <input
+              className="request-token"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              step="any"
+              aria-label={m.contourIntervalLine}
+              autoFocus
+              value={typed}
+              onChange={e => setTyped(e.target.value)}
+              onBlur={commit}
+              onKeyDown={e => {
+                if (e.key === 'Enter') commit()
+                if (e.key === 'Escape') setTyped(null)
+              }}
+            />
+            {format.metresSuffix}
+          </span>
         )}
+        <span className="panel-line-actions">
+          {typed === null && (
+            <button
+              type="button"
+              className="panel-line-action"
+              onClick={() => setTyped(String(interval.meters))}
+            >
+              {m.changeContourInterval}
+            </button>
+          )}
+          {interval.isSetByUser && typed === null && (
+            <button type="button" className="panel-line-action" onClick={() => onChange(null)}>
+              {m.contourIntervalReset}
+            </button>
+          )}
+          <InfoToggle glyph={m.infoGlyph} label={m.contourIntervalInfo} text={source} />
+        </span>
       </span>
-      <p className="request-note">{source}</p>
     </div>
+  )
+}
+
+// Touch screens have no hover, so a tap keeps the text open as well.
+function InfoToggle({ glyph, label, text }: { glyph: string; label: string; text: string }) {
+  const [isOpen, setIsOpen] = useState(false)
+  return (
+    <span className="info-toggle">
+      <button
+        type="button"
+        className="info-toggle-button"
+        aria-label={label}
+        aria-expanded={isOpen}
+        title={text}
+        onClick={() => setIsOpen(open => !open)}
+      >
+        {glyph}
+      </button>
+      {isOpen && (
+        <span className="info-toggle-text" role="note">
+          {text}
+        </span>
+      )}
+    </span>
   )
 }

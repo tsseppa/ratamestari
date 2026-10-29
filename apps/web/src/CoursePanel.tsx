@@ -165,13 +165,14 @@ export function CoursePanel(props: Props) {
 
       {hasCentre && !isPickingCentre && (
         <>
-          {(offersTraining || isTraining) && (
-            <PurposeSentence request={props.request} onRequestChange={props.onRequestChange} />
-          )}
           {isTraining ? (
             <TrainingSentence request={props.request} onRequestChange={props.onRequestChange} />
           ) : (
-            <RequestSentence request={props.request} onRequestChange={props.onRequestChange} />
+            <RequestSentence
+              request={props.request}
+              onRequestChange={props.onRequestChange}
+              offersTraining={offersTraining}
+            />
           )}
           {course && <CourseFigures course={course} />}
           {course && isMeasured && (
@@ -227,30 +228,29 @@ function TrainingMinutes({
   )
 }
 
-function PurposeSentence({ request, onRequestChange }: Pick<Props, 'request' | 'onRequestChange'>) {
+// The purpose is the course line's own label, so the two kinds of course take one line.
+function PurposeLabel({
+  id,
+  request,
+  onRequestChange,
+}: Pick<Props, 'request' | 'onRequestChange'> & { id: string }) {
   const m = useMessages().course
   return (
-    <section className="request" aria-labelledby="purpose-title">
-      <span id="purpose-title" className="panel-line-label">
-        {m.purposeLine}
-      </span>
-      <p className="request-sentence">
-        <select
-          className="request-token"
-          aria-label={m.purposeLine}
-          value={purposeOf(request)}
-          onChange={e =>
-            onRequestChange(withPurpose(request, coursePurposeSchema.parse(e.target.value)))
-          }
-        >
-          {coursePurposeSchema.options.map(purpose => (
-            <option key={purpose} value={purpose}>
-              {m.purposes[purpose]}
-            </option>
-          ))}
-        </select>
-      </p>
-    </section>
+    <select
+      id={id}
+      className="panel-line-label purpose-choice"
+      aria-label={m.purposeLine}
+      value={purposeOf(request)}
+      onChange={e =>
+        onRequestChange(withPurpose(request, coursePurposeSchema.parse(e.target.value)))
+      }
+    >
+      {coursePurposeSchema.options.map(purpose => (
+        <option key={purpose} value={purpose}>
+          {m.purposes[purpose]}
+        </option>
+      ))}
+    </select>
   )
 }
 
@@ -262,9 +262,7 @@ function TrainingSentence({
   const change = (fields: Partial<CourseRequest>) => onRequestChange({ ...request, ...fields })
   return (
     <section className="request" aria-labelledby="training-title">
-      <span id="training-title" className="panel-line-label">
-        {m.courseLine}
-      </span>
+      <PurposeLabel id="training-title" request={request} onRequestChange={onRequestChange} />
       <p className="request-sentence">
         <select className="request-token" aria-label={m.trainingKind} value="contour" disabled>
           {trainingKindSchema.options.map(kind => (
@@ -301,7 +299,12 @@ function RequestSentence({
   onRequestChange,
   label,
   note,
-}: Pick<Props, 'request' | 'onRequestChange'> & { label?: string; note?: string }) {
+  offersTraining = false,
+}: Pick<Props, 'request' | 'onRequestChange'> & {
+  label?: string
+  note?: string
+  offersTraining?: boolean
+}) {
   const m = useMessages().course
   const [replacedClass, setReplacedClass] = useState<string | null>(null)
   const change = (fields: Partial<CourseRequest>) => {
@@ -322,9 +325,13 @@ function RequestSentence({
 
   return (
     <section className="request" aria-labelledby="request-title">
-      <span id="request-title" className="panel-line-label">
-        {label ?? m.courseLine}
-      </span>
+      {offersTraining ? (
+        <PurposeLabel id="request-title" request={request} onRequestChange={onRequestChange} />
+      ) : (
+        <span id="request-title" className="panel-line-label">
+          {label ?? m.courseLine}
+        </span>
+      )}
       <p className="request-sentence">
         <select
           className="request-token"

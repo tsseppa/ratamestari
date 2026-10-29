@@ -29,6 +29,7 @@ export function useFormat(): Format {
 export interface Format {
   readonly kilometres: (meters: number) => string
   readonly metres: (meters: number) => string
+  readonly contourInterval: (meters: number) => string
   readonly distance: (meters: number) => string
   readonly share: (fraction: number) => string
   readonly bearing: (degrees: number) => string
@@ -56,6 +57,12 @@ export function formatFor({ locale, messages }: Language): Format {
     unit: 'meter',
     maximumFractionDigits: 0,
   })
+  // Contour intervals such as 2.5 m keep their decimal.
+  const contourInterval = new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'meter',
+    maximumFractionDigits: 1,
+  })
   const share = new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 })
   const wholeNumber = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 })
   const degrees = new Intl.NumberFormat(locale, {
@@ -80,6 +87,7 @@ export function formatFor({ locale, messages }: Language): Format {
   return {
     kilometres: formatKilometres,
     metres: formatMetres,
+    contourInterval: meters => contourInterval.format(meters),
     distance: meters =>
       meters < METRES_SHOWN_UP_TO ? formatMetres(meters) : formatKilometres(meters),
     share: fraction => share.format(fraction),

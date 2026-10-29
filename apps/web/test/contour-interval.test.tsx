@@ -24,12 +24,16 @@ describe('contourIntervalFrom', () => {
 })
 
 describe('ContourIntervalLine', () => {
-  it('shows the interval and says where it came from', () => {
+  it('shows the interval as text with Change, and keeps where it came from behind the help', () => {
     const fromMap = render(2.5, 2.5, false)
-    expect(fromMap).toMatch(new RegExp(`aria-label="${m.contourIntervalLine}"[^>]*value="2.5"`))
-    expect(fromMap).toContain(m.contourIntervalFromMap)
-    expect(render(5, null, false)).toContain(m.contourIntervalStandard('5 m'))
-    expect(render(2, 5, true)).toContain(m.contourIntervalSetByYou)
+    expect(fromMap).toMatch(/>2\.5\sm</)
+    expect(fromMap).not.toContain('<input')
+    expect(fromMap).toContain(`>${m.changeContourInterval}</button>`)
+    expect(fromMap).toContain(`aria-label="${m.contourIntervalInfo}"`)
+    expect(fromMap).toContain(`aria-expanded="false"`)
+    expect(fromMap).toContain(`title="${m.contourIntervalFromMap}"`)
+    expect(render(5, null, false)).toContain(`title="${m.contourIntervalStandard('5 m')}"`)
+    expect(render(2, 5, true)).toContain(`title="${m.contourIntervalSetByYou}"`)
   })
 
   it("offers the map's own interval back only after the user has set one", () => {

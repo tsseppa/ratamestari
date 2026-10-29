@@ -157,6 +157,7 @@ describe('CoursePanel contour training', () => {
     setExperimentalFeatures(true)
     expect(render(true)).toContain(m.purposeLine)
     expect(render(true)).toContain(m.purposes.training)
+    expect(render(true)).not.toContain(`>${m.courseLine}</span>`)
   })
 
   it('keeps showing the course type for a training request after the features are off', () => {

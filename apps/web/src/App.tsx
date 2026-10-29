@@ -1433,7 +1433,7 @@ export function App() {
                   const contours = peripheral.contourIntervalMetres
                   const scaleLine = messages.print.scaleLine(
                     format.scale(course.printArea?.scale ?? map.info.scale),
-                    contours === null ? null : format.metres(contours),
+                    contours === null ? null : format.contourInterval(contours),
                   )
                   return savePrintPdf(
                     map,
