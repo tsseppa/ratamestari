@@ -41,6 +41,9 @@ export default defineConfig({
   base: './',
   plugins: [react(), umami()],
   define: { __APP_VERSION__: JSON.stringify(version) },
+  // Vite would otherwise listen only on IPv6 localhost in the dev container, where the forwarded
+  // port never answers.
+  server: { host: '127.0.0.1' },
   worker: { format: 'es' },
   build: {
     rolldownOptions: {
