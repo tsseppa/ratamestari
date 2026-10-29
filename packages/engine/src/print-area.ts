@@ -1,9 +1,15 @@
 import { localExtent, localPoint, type LocalExtent, type LocalPoint } from '@ratamestari/core'
-import { CONTROL_CIRCLE, DESCRIPTION_BOX, PAPER, type PaperSize } from '@ratamestari/rules'
+import {
+  CONTROL_CIRCLE,
+  DESCRIPTION_BOX,
+  PAPER,
+  type PaperSize,
+  type TrainingRules,
+} from '@ratamestari/rules'
 import type { ControlSiteCandidate } from './control-sites'
 import { cellCenterOf } from './raster'
 import { segmentsCross } from './polyline'
-import { siteAreaQuality } from './site-quality'
+import { siteQuality } from './site-quality'
 import type { Terrain } from './terrain'
 
 export type Orientation = 'portrait' | 'landscape'
@@ -39,6 +45,7 @@ export interface PrintAreaRequest {
   readonly peripheralSize?: PaperBoxSize | null
   // Stops already chosen, such as kept controls, that the paper must hold clear of its boxes.
   readonly mustHold?: readonly LocalPoint[]
+  readonly training?: TrainingRules | null
 }
 
 const QUALITY_CELL_METERS = 25
@@ -162,7 +169,7 @@ interface PlacedBoxes {
 
 // Scores a paper extent by the control sites it leaves usable, with the boxes in their best corners.
 function boxPlacer(terrain: Terrain, sites: readonly ControlSiteCandidate[], request: BoxRequest) {
-  const quality = summedQuality(terrain, sites)
+  const quality = summedQuality(terrain, sites, request.training)
   const box = descriptionBoxGroundSize(request.descriptionRows, request.printScale)
   const peripheral = request.peripheralSize
     ? peripheralGroundSize(request.peripheralSize, request.printScale)
@@ -321,8 +328,12 @@ function summedAreaTable(
   }
 }
 
-function summedQuality(terrain: Terrain, sites: readonly ControlSiteCandidate[]): SummedArea {
-  const weights = siteAreaQuality(sites)
+function summedQuality(
+  terrain: Terrain,
+  sites: readonly ControlSiteCandidate[],
+  training: TrainingRules | null | undefined,
+): SummedArea {
+  const weights = siteQuality(sites, terrain, training)
   return summedAreaTable(terrain, QUALITY_CELL_METERS, add =>
     sites.forEach((site, i) => add(site.position, weights[i]!)),
   )

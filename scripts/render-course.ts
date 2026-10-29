@@ -13,7 +13,7 @@ import {
   findTechnicalAreas,
   isUsableInPrintArea,
   planCourse,
-  siteAreaQuality,
+  siteQuality,
   isInPeripheralBlock,
   layOutOverprint,
   overprintDetailOf,
@@ -275,7 +275,7 @@ function areaOverlay(c: Course): string {
   const area = c.printArea
   if (!area) return ''
   const onPaper = sites.filter(site => isUsableInPrintArea(site.position, area))
-  const quality = siteAreaQuality(onPaper)
+  const quality = siteQuality(onPaper, terrain, training)
   const areas = findTechnicalAreas(
     onPaper,
     quality,

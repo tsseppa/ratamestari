@@ -75,6 +75,7 @@ export function* setCourseOnPaperSteps(
       descriptionRows: expectedControlCount(spec.format) + DESCRIPTION_BOX.rowsBesidesControls,
       peripheralSize: spec.peripheralSize ?? null,
       mustHold: keptPositions,
+      training: spec.training ?? null,
     })
     if (!printArea) return null
     const search = searchCourseSteps(terrain, sites, { ...spec, printArea })

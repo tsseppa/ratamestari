@@ -1,5 +1,5 @@
-import type { LocalExtent, MapFeature } from '@ratamestari/core'
-import { DEFAULT_CONTOUR_INTERVAL_METERS } from '@ratamestari/rules'
+import type { LocalExtent, LocalPoint, MapFeature } from '@ratamestari/core'
+import { DEFAULT_CONTOUR_INTERVAL_METERS, isomSymbolRule } from '@ratamestari/rules'
 import { buildContourIndex, type ContourIndex } from './contours'
 import {
   BLOCKED,
@@ -15,7 +15,12 @@ export interface Terrain {
   readonly contours: ContourIndex
   readonly contourIntervalMeters: number
   readonly mappedArea: Uint8Array
+  // Contours, index contours and form lines: the relief as drawn, for measuring its detail.
+  readonly reliefLines: readonly (readonly LocalPoint[])[]
 }
+
+const isReliefLine = (isomCode: string | null) =>
+  isomCode !== null && isomSymbolRule(isomCode)?.controlSite === 'contourShape'
 
 export interface TerrainOptions extends CostGridOptions {
   readonly contourIntervalMeters?: number
@@ -52,5 +57,8 @@ export function buildTerrain(
     contours,
     contourIntervalMeters,
     mappedArea,
+    reliefLines: features.flatMap(({ isomCode, geometry }) =>
+      isReliefLine(isomCode) && geometry.type === 'LineString' ? [geometry.coordinates] : [],
+    ),
   }
 }

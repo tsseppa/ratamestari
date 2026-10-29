@@ -6,6 +6,7 @@ import {
   type LocalPoint,
   type MapFeature,
 } from '@ratamestari/core'
+import type { ControlSiteCandidate } from '../src/control-sites'
 
 export const SQUARE_KILOMETRE: LocalExtent = localExtent(0, 0, 1000, 1000)
 
@@ -51,4 +52,25 @@ export const point = (x: number, y: number): LocalGeometry => ({
 export const polygon = (...points: [number, number][]): LocalGeometry => ({
   type: 'Polygon',
   coordinates: [points.map(([x, y]): LocalPoint => localPoint(x, y))],
+})
+
+export const controlSite = (
+  x: number,
+  y: number,
+  overrides: Partial<ControlSiteCandidate> = {},
+): ControlSiteCandidate => ({
+  id: 0,
+  position: localPoint(x, y),
+  isomCode: '204',
+  symbolNumber: 204000,
+  placement: 'point',
+  contourForm: null,
+  distanceToLeadingFeatureMeters: 100,
+  leadingFeatureDistance: 'far',
+  inSlowTerrain: false,
+  technicalDifficulty: 4,
+  orientation: null,
+  similarFeatureOffsets: [],
+  flagSide: null,
+  ...overrides,
 })

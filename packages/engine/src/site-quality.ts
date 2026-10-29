@@ -1,5 +1,8 @@
 import type { LocalPoint } from '@ratamestari/core'
+import type { TrainingRules } from '@ratamestari/rules'
+import { contourDetailQuality } from './contour-detail'
 import type { ControlSiteCandidate } from './control-sites'
+import type { Terrain } from './terrain'
 
 const NEIGHBOURHOOD_RADIUS_METERS = 150
 const DEMANDING_SITE_WEIGHT = 1
@@ -54,11 +57,24 @@ export function siteAreaQuality(sites: readonly ControlSiteCandidate[]): Float32
   return Float32Array.from(raw, value => Math.min(1, value / reference))
 }
 
+// A contour map's good terrain is in its relief, not in point features (D25).
+export function siteQuality(
+  sites: readonly ControlSiteCandidate[],
+  terrain: Terrain,
+  training: TrainingRules | null | undefined,
+): Float32Array {
+  return training?.kind === 'contour'
+    ? contourDetailQuality(sites, terrain, training.contourDetail)
+    : siteAreaQuality(sites)
+}
+
 export type SiteQualityOf = (site: ControlSiteCandidate) => number
 
 // Site ids are positions in the unfiltered candidate list, not in `sites`, so look up by site.
-export function siteAreaQualityOf(sites: readonly ControlSiteCandidate[]): SiteQualityOf {
-  const quality = siteAreaQuality(sites)
+export function siteAreaQualityOf(
+  sites: readonly ControlSiteCandidate[],
+  quality: Float32Array = siteAreaQuality(sites),
+): SiteQualityOf {
   const bySite = new Map(sites.map((site, i) => [site, quality[i]!]))
   return site => bySite.get(site) ?? 0
 }

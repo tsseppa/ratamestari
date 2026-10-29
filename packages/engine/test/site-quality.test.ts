@@ -1,28 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { localPoint } from '@ratamestari/core'
-import type { ControlSiteCandidate } from '../src/control-sites'
-import { siteAreaQuality, siteAreaQualityOf } from '../src/site-quality'
+import { TRAINING_DEFAULTS } from '@ratamestari/rules'
+import { siteAreaQuality, siteAreaQualityOf, siteQuality } from '../src/site-quality'
+import { contourDetailQuality } from '../src/contour-detail'
+import { buildTerrain } from '../src/terrain'
+import { controlSite, feature, line, SQUARE_KILOMETRE } from './fixtures'
 
-const site = (
-  x: number,
-  y: number,
-  overrides: Partial<ControlSiteCandidate> = {},
-): ControlSiteCandidate => ({
-  id: 0,
-  position: localPoint(x, y),
-  isomCode: '204',
-  symbolNumber: 204000,
-  placement: 'point',
-  contourForm: null,
-  distanceToLeadingFeatureMeters: 100,
-  leadingFeatureDistance: 'far',
-  inSlowTerrain: false,
-  technicalDifficulty: 4,
-  orientation: null,
-  similarFeatureOffsets: [],
-  flagSide: null,
-  ...overrides,
-})
+const site = controlSite
 
 const cluster = (cx: number, cy: number, count: number, overrides = {}) =>
   Array.from({ length: count }, (_, i) =>
@@ -72,5 +55,28 @@ describe('siteAreaQuality', () => {
     expect(qualityOf(filtered[0]!)).toBe(byPosition[0])
     expect(qualityOf(filtered[20]!)).toBe(byPosition[20])
     expect(Number.isNaN(qualityOf(filtered[20]!))).toBe(false)
+  })
+})
+
+describe('siteQuality', () => {
+  const zigzag = Array.from({ length: 21 }, (_, i): [number, number] => [
+    100 + i * 20,
+    i % 2 ? 120 : 100,
+  ])
+  const terrain = buildTerrain([feature('101', line(...zigzag))], SQUARE_KILOMETRE, {
+    restrictToMappedArea: false,
+  })
+  const sites = [...cluster(100, 100, 20), site(900, 900)]
+
+  it('measures contour detail on contour training', () => {
+    const training = TRAINING_DEFAULTS.contour.middle
+    expect(siteQuality(sites, terrain, training)).toEqual(
+      contourDetailQuality(sites, terrain, training.contourDetail),
+    )
+  })
+
+  it('measures site density without training rules', () => {
+    expect(siteQuality(sites, terrain, null)).toEqual(siteAreaQuality(sites))
+    expect(siteQuality(sites, terrain, undefined)).toEqual(siteAreaQuality(sites))
   })
 })

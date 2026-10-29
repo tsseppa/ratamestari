@@ -49,7 +49,7 @@ export {
   shortestPassableMeters,
   type CourseMeasurements,
 } from './course-length'
-export { siteAreaQuality, siteAreaQualityOf, type SiteQualityOf } from './site-quality'
+export { siteAreaQuality, siteAreaQualityOf, siteQuality, type SiteQualityOf } from './site-quality'
 export { difficultyInCourse, flagSideFor, type FlagSide } from './flag-side'
 export {
   fitCourseToFrame,

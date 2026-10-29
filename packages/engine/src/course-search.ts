@@ -64,7 +64,7 @@ import {
   type LockedStops,
 } from './locks'
 import { planSkeleton, planSkeletonSteps, type Skeleton } from './skeleton'
-import { siteAreaQualityOf, type SiteQualityOf } from './site-quality'
+import { siteAreaQualityOf, siteQuality, type SiteQualityOf } from './site-quality'
 import { distanceToSegment, isInsidePolygon, segmentsCross } from './polyline'
 import { BLOCKED, routableCellOf, type CostGrid } from './cost-grid'
 import { seededRandom, type Random } from './random'
@@ -486,7 +486,7 @@ function prepareSearch(
     targetSeconds,
     paceSecondsPerKm,
     toFinishGrid,
-    qualityOf: siteAreaQualityOf(sites),
+    qualityOf: siteAreaQualityOf(sites, siteQuality(sites, terrain, spec.training)),
     secondsToFinish,
     reachable,
   }
