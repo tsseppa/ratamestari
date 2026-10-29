@@ -35,6 +35,8 @@ export interface Format {
   readonly scale: (denominator: number) => string
   readonly duration: (seconds: number) => string
   readonly timeDifference: (seconds: number) => string
+  // The unit written after a number of minutes typed into a field, with its space.
+  readonly minutesSuffix: string
 }
 
 const SECONDS_PER_MINUTE = 60
@@ -66,6 +68,15 @@ export function formatFor({ locale, messages }: Language): Format {
     const minutes = Math.floor(total / SECONDS_PER_MINUTE)
     return `${wholeNumber.format(minutes)}:${String(total % SECONDS_PER_MINUTE).padStart(2, '0')}`
   }
+  const minutesSuffix = new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'minute',
+    unitDisplay: 'short',
+  })
+    .formatToParts(1)
+    .filter(part => part.type === 'literal' || part.type === 'unit')
+    .map(part => part.value)
+    .join('')
   const formatKilometres = (meters: number) => kilometres.format(meters / 1000)
   const formatMetres = (meters: number) => metres.format(meters)
   return {
@@ -83,5 +94,6 @@ export function formatFor({ locale, messages }: Language): Format {
       Math.round(seconds) < SECONDS_PER_MINUTE
         ? messages.units.seconds(wholeNumber.format(Math.round(seconds)))
         : duration(seconds),
+    minutesSuffix,
   }
 }

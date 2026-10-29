@@ -147,7 +147,9 @@ const isSameRequest = (a: CourseRequest, b: CourseRequest) =>
   a.format === b.format &&
   a.sex === b.sex &&
   a.ageClass === b.ageClass &&
-  a.skillLetter === b.skillLetter
+  a.skillLetter === b.skillLetter &&
+  (a.purpose ?? 'competition') === (b.purpose ?? 'competition') &&
+  a.trainingMinutes === b.trainingMinutes
 
 const errorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e))
 

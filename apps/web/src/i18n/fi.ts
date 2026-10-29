@@ -161,6 +161,12 @@ export const fi: Messages = {
     courseLine: 'Rata',
     eventLevel: 'Kilpailun taso',
     eventLevels: { national: 'Kansallisen tason', finnishChampionship: 'SM-tason' },
+    eventLevelOrTraining: 'Kilpailun taso tai harjoitus',
+    contourTraining: 'Käyräkarttaharjoituksen',
+    contourTrainingNote:
+      'Käyräkarttaharjoituksessa rata viedään rinteisiin, joissa käyrät ovat yksityiskohtaisimpia. Voittoajan valitset itse; muut arvot ovat Ratamestarin oletuksia, eivät IOF:n tai SSL:n sääntöjä.',
+    trainingMinutes: 'Harjoituksen voittoaika minuutteina',
+    beforeTrainingMinutes: ', ',
     distance: 'Matka',
     formats: { long: 'pitkä matka', middle: 'keskimatka' },
     forClass: 'sarjalle',

@@ -58,7 +58,8 @@ import { loadOcadMap, type IsomCodeOverrides, type OcadMap } from '@ratamestari/
 import {
   classFromCourseName,
   courseRequestSchema,
-  courseTargetFor,
+  courseTargetForPurpose,
+  trainingRulesFor,
   printScaleFor,
   type CourseClass,
   type CourseRequest,
@@ -116,10 +117,11 @@ function specFor(
   startDistanceFromFinishMeters: readonly [number, number] | null = null,
 ): CourseSpec | null {
   const validRequest = courseRequestSchema.parse(request)
-  const target = courseTargetFor(validRequest)
+  const target = courseTargetForPurpose(validRequest)
   if (!target) return null
   return {
     target,
+    training: trainingRulesFor(validRequest),
     format: validRequest.format,
     printScale: printScaleFor(printScaleChoice, validRequest.format),
     competitionCentre,

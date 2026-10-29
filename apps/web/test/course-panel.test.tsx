@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { renderToStaticMarkup } from 'react-dom/server'
 import type { CourseRequest } from '@ratamestari/rules'
 import type { CourseFileCheck } from '../src/CheckPanel'
 import { CoursePanel } from '../src/CoursePanel'
-import { FINNISH, LanguageProvider } from '../src/i18n'
+import { setExperimentalFeatures } from '../src/experimental'
+import { ENGLISH, FINNISH, LanguageProvider } from '../src/i18n'
 import { deduceClass } from '../src/course-fit'
 import type { SearchStatus } from '../src/search-progress'
 
@@ -21,9 +22,10 @@ const renderPanel = (
   hasCentre: boolean,
   check: CourseFileCheck | null = null,
   search: SearchStatus | null = null,
+  request: CourseRequest = REQUEST,
 ) => (
   <CoursePanel
-    request={REQUEST}
+    request={request}
     onRequestChange={ignore}
     isAssistantOn={false}
     hasCentre={hasCentre}
@@ -140,5 +142,35 @@ describe('CoursePanel', () => {
     const html = render(true, null, { startedAt: 0, phase: 'sections' })
     expect(html).toContain('Setting sections…')
     expect(html).toContain('Stop keeps the best course found so far.')
+  })
+})
+
+describe('CoursePanel contour training', () => {
+  const m = ENGLISH.messages.course
+  const TRAINING: CourseRequest = { ...REQUEST, purpose: 'training', trainingMinutes: 75 }
+
+  afterEach(() => setExperimentalFeatures(false))
+
+  it('offers training in the event level menu only with experimental features on', () => {
+    setExperimentalFeatures(false)
+    expect(render(true)).not.toContain(m.contourTraining)
+    setExperimentalFeatures(true)
+    expect(render(true)).toContain(m.contourTraining)
+    expect(render(true)).toContain(`aria-label="${m.eventLevelOrTraining}"`)
+  })
+
+  it('keeps showing a training request after experimental features are turned off', () => {
+    setExperimentalFeatures(false)
+    expect(render(true, null, null, TRAINING)).toContain(m.contourTraining)
+  })
+
+  it('shows the minutes and the training note only for training', () => {
+    setExperimentalFeatures(true)
+    const competition = render(true)
+    expect(competition).not.toContain(m.trainingMinutes)
+    expect(competition).not.toContain(m.contourTrainingNote)
+    const training = render(true, null, null, TRAINING)
+    expect(training).toMatch(new RegExp(`aria-label="${m.trainingMinutes}"[^>]*value="75"`))
+    expect(training).toContain(m.contourTrainingNote)
   })
 })

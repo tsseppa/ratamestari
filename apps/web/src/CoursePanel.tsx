@@ -11,7 +11,14 @@ import {
 } from '@ratamestari/rules'
 import { useEffect, useState } from 'react'
 import { offeredAgeClasses, withOfferedClass } from './class-choice'
+import { useExperimentalFeatures } from './experimental'
 import { useFormat, useMessages } from './i18n'
+import {
+  purposeChoiceOf,
+  TRAINING_CHOICE,
+  trainingMinutesFrom,
+  withPurposeChoice,
+} from './purpose-choice'
 import type { KeptCount } from './kept'
 import { LockIcon } from './LegRoutesPanel'
 import {
@@ -183,6 +190,37 @@ export const hasCoarsePointer = () =>
 
 const classValue = (sex: CourseRequest['sex'], age: CourseRequest['ageClass']) => `${sex}${age}`
 
+function TrainingMinutes({
+  minutes,
+  onChange,
+}: {
+  minutes: number | undefined
+  onChange: (minutes: number) => void
+}) {
+  const m = useMessages().course
+  const format = useFormat()
+  const [typed, setTyped] = useState(minutes === undefined ? '' : String(minutes))
+  return (
+    <>
+      {m.beforeTrainingMinutes}
+      <input
+        className="request-token"
+        type="number"
+        inputMode="numeric"
+        min={1}
+        aria-label={m.trainingMinutes}
+        value={typed}
+        onChange={e => {
+          setTyped(e.target.value)
+          const typedMinutes = trainingMinutesFrom(e.target.value)
+          if (typedMinutes !== null) onChange(typedMinutes)
+        }}
+      />
+      {format.minutesSuffix}
+    </>
+  )
+}
+
 function RequestSentence({
   request,
   onRequestChange,
@@ -206,6 +244,8 @@ function RequestSentence({
     onRequestChange(choice.request)
   }
   const ages = offeredAgeClasses(request)
+  const offersTraining = useExperimentalFeatures()
+  const isTraining = request.purpose === 'training'
 
   return (
     <section className="request" aria-labelledby="request-title">
@@ -215,15 +255,18 @@ function RequestSentence({
       <p className="request-sentence">
         <select
           className="request-token"
-          aria-label={m.eventLevel}
-          value={request.eventLevel}
-          onChange={e => change({ eventLevel: eventLevelSchema.parse(e.target.value) })}
+          aria-label={offersTraining ? m.eventLevelOrTraining : m.eventLevel}
+          value={purposeChoiceOf(request)}
+          onChange={e => change(withPurposeChoice(request, e.target.value))}
         >
           {eventLevelSchema.options.map(level => (
             <option key={level} value={level}>
               {m.eventLevels[level]}
             </option>
           ))}
+          {(offersTraining || isTraining) && (
+            <option value={TRAINING_CHOICE}>{m.contourTraining}</option>
+          )}
         </select>{' '}
         <select
           className="request-token"
@@ -270,8 +313,16 @@ function RequestSentence({
             </option>
           ))}
         </select>
+        {isTraining && (
+          <TrainingMinutes
+            key={classValue(request.sex, request.ageClass)}
+            minutes={request.trainingMinutes}
+            onChange={trainingMinutes => change({ trainingMinutes })}
+          />
+        )}
       </p>
       <p className="request-note">{m.skillLevels[request.skillLetter]}</p>
+      {isTraining && <p className="request-note">{m.contourTrainingNote}</p>}
       {note && <p className="request-note">{note}</p>}
       {replacedClass && (
         <p className="request-note" role="status">

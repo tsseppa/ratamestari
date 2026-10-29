@@ -4,7 +4,8 @@ Ideas mentioned while working, before they become a plan. One line each: date, i
 
 ## Training (D25)
 
-- 2026-10-29 · Training UI: purpose (competition or training), training minutes and rules, behind the experimental switch · planned
+- 2026-10-29 · Training UI: contour training in the course sentence, with its own winning time, behind the experimental switch · done
+- 2026-10-29 · Training findings as advice rather than errors (`findingsAsAdvice` in the training rules) · planned
 - 2026-10-29 · Contour-map leg style: long legs along or across a slope that end at one clear contour feature · planned
 - 2026-10-29 · Form-line bends as control sites (they have no known uphill side yet, so they are dropped) · planned
 - 2026-10-29 · Reduced maps: a printed symbol set with a contour-map preset the user can change; controls only on printed features · planned

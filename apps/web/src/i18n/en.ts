@@ -163,6 +163,12 @@ export const en = {
     courseLine: 'Course',
     eventLevel: 'Event level',
     eventLevels: { national: 'National level', finnishChampionship: 'SM level' },
+    eventLevelOrTraining: 'Event level or training',
+    contourTraining: 'Contour training',
+    contourTrainingNote:
+      'Contour training sends the course to the hillsides with the most contour detail. The winning time is yours to set; the other values are Ratamestari’s defaults, not IOF or SSL rules.',
+    trainingMinutes: 'Training winning time in minutes',
+    beforeTrainingMinutes: ', ',
     distance: 'Distance',
     formats: { long: 'long distance', middle: 'middle distance' },
     forClass: 'for',
