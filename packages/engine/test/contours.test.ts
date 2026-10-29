@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { localPoint, type LocalPoint } from '@ratamestari/core'
 import { buildContourIndex, countContourCrossings, type ContourCrossings } from '../src/contours'
+import { LEFT_IS_UPHILL, RIGHT_IS_UPHILL } from '../src/relief'
 import { feature, line, point, rectangle, SQUARE_KILOMETRE } from './fixtures'
 
 const CELL_SIZE_METERS = 5
@@ -139,5 +140,105 @@ describe('countContourCrossings', () => {
   it('finds crossings across bucket boundaries on long segments', () => {
     const { up, down, unknown } = crossings(contoursAt(1, 499, 999), route([0, 0], [1000, 1000]))
     expect(up + down + unknown).toBe(3)
+  })
+})
+
+describe('buildContourIndex on a map whose contours share one drawing direction', () => {
+  const tenMetresApart = (count: number, from: number) =>
+    Array.from({ length: count }, (_, i) => from + i * 10)
+  const eastward = (y: number) => feature('101', line([0, y], [1000, y]))
+  const westward = (y: number) => feature('101', line([1000, y], [0, y]))
+  const tickOn = (y: number, rotation: number) => feature('101', point(500, y), rotation)
+  const knollFarAway = feature(
+    '101',
+    line([800, 800], [900, 800], [900, 900], [800, 900], [800, 800]),
+  )
+  const uphillSides = (features: Parameters<typeof buildContourIndex>[0]) => [
+    ...buildContourIndex(features, SQUARE_KILOMETRE).uphillSides,
+  ]
+
+  it('gives every line an uphill side from a closed contour read as a knoll', () => {
+    expect(uphillSides([...tenMetresApart(20, 100).map(eastward), knollFarAway])).toEqual(
+      Array(21).fill(LEFT_IS_UPHILL),
+    )
+  })
+
+  it('gives every line an uphill side from a single slope tick', () => {
+    const lines = tenMetresApart(20, 100).map(eastward)
+    expect(uphillSides([...lines, tickOn(150, TICK_POINTS_SOUTH)])).toEqual(
+      Array(20).fill(LEFT_IS_UPHILL),
+    )
+    expect(uphillSides([...lines, tickOn(150, TICK_POINTS_NORTH)])).toEqual(
+      Array(20).fill(RIGHT_IS_UPHILL),
+    )
+  })
+
+  it('trusts a slope tick over a closed contour', () => {
+    const lines = [...tenMetresApart(20, 100).map(eastward), knollFarAway]
+    expect(uphillSides([...lines, tickOn(150, TICK_POINTS_NORTH)])).toEqual(
+      Array(21).fill(RIGHT_IS_UPHILL),
+    )
+  })
+
+  it('gives a line drawn against the map the opposite side', () => {
+    const lines = [
+      ...tenMetresApart(10, 100).map(eastward),
+      westward(205),
+      ...tenMetresApart(10, 220).map(eastward),
+    ]
+    expect(uphillSides([...lines, tickOn(150, TICK_POINTS_SOUTH)])).toEqual([
+      ...Array(10).fill(LEFT_IS_UPHILL),
+      RIGHT_IS_UPHILL,
+      ...Array(10).fill(LEFT_IS_UPHILL),
+    ])
+  })
+
+  it('reads a slope tick against the drawing direction of its own line', () => {
+    const lines = [
+      ...tenMetresApart(10, 100).map(eastward),
+      westward(205),
+      ...tenMetresApart(10, 220).map(eastward),
+    ]
+    const tickOnReversedLine = tickOn(205, TICK_POINTS_SOUTH)
+    expect(uphillSides([...lines, tickOnReversedLine])).toEqual([
+      ...Array(10).fill(LEFT_IS_UPHILL),
+      RIGHT_IS_UPHILL,
+      ...Array(10).fill(LEFT_IS_UPHILL),
+    ])
+  })
+
+  it('reads a closed contour drawn against the map as a knoll all the same', () => {
+    const rings = [
+      ...tenMetresApart(10, 50).map(h => squareRing(h)),
+      squareRing(155, true),
+      ...tenMetresApart(10, 170).map(h => squareRing(h)),
+    ]
+    expect(uphillSides(rings)).toEqual([
+      ...Array(10).fill(LEFT_IS_UPHILL),
+      RIGHT_IS_UPHILL,
+      ...Array(10).fill(LEFT_IS_UPHILL),
+    ])
+    expect(crossings(rings, southToCenter)).toEqual({ up: 21, down: 0, unknown: 0 })
+  })
+
+  it('lets a line with its own slope tick follow the tick against the map', () => {
+    const lines = tenMetresApart(20, 100).map(eastward)
+    const ticks = [
+      tickOn(100, TICK_POINTS_SOUTH),
+      tickOn(110, TICK_POINTS_SOUTH),
+      tickOn(150, TICK_POINTS_NORTH),
+    ]
+    const sides = Array(20).fill(LEFT_IS_UPHILL)
+    sides[5] = RIGHT_IS_UPHILL
+    expect(uphillSides([...lines, ...ticks])).toEqual(sides)
+  })
+
+  it('keeps reading the slope from water when neighbouring contours run either way', () => {
+    const handDrawn = tenMetresApart(20, 100).map((y, i) =>
+      i % 2 === 0 ? eastward(y) : westward(y),
+    )
+    expect(uphillSides([seaInTheSouth, ...handDrawn])).toEqual(
+      handDrawn.map((_, i) => (i % 2 === 0 ? LEFT_IS_UPHILL : RIGHT_IS_UPHILL)),
+    )
   })
 })

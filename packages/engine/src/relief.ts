@@ -1,4 +1,5 @@
 import type { LocalExtent, LocalPoint, MapFeature } from '@ratamestari/core'
+import { drawingDirectionsOf } from './drawing-direction'
 import { mappedAreaMask } from './mapped-area'
 import { distanceToSegment } from './polyline'
 import { cellIndexOf, fillPolygon, traceLine, type GridFrame } from './raster'
@@ -22,6 +23,8 @@ const WATER_ISOM_CODES = new Set(['301', '302'])
 // Contours often stop short of the map frame, at the edge of the mapped area, which would join the
 // land on both sides around the end. Such an end is extended to the frame to keep the sides apart.
 const MAPPED_EDGE_MAX_DISTANCE_FROM_END_METERS = 100
+// A slope tick is drawn by the mapper; that a closed contour is a knoll is only the likelier guess.
+const SLOPE_TICK_WEIGHT_AGAINST_RINGS = 10
 const NONE = -1
 const DESCENDING = -1
 const CLIMBING = 1
@@ -42,6 +45,18 @@ export function computeUphillSides(
   features: readonly MapFeature[],
   extent: LocalExtent,
 ): Int8Array {
+  const tickVotes = slopeTickVotes(lines, features)
+  const evidence = uphillEvidence(lines, tickVotes)
+  const drawn = drawingDirectionsOf(lines)
+  const uphillWhenDrawnWithMap = drawn && uphillSideOfDrawing(lines, drawn, tickVotes, evidence)
+  if (drawn && uphillWhenDrawnWithMap) {
+    return Int8Array.from(lines, (_, id): UphillSide =>
+      tickVotes[id]! !== 0
+        ? (Math.sign(tickVotes[id]!) as UphillSide)
+        : ((uphillWhenDrawnWithMap * drawn[id]!) as UphillSide),
+    )
+  }
+
   const frame = regionFrame(extent)
   const contourAt = new Int32Array(frame.columns * frame.rows).fill(NONE)
   lines.forEach((line, id) =>
@@ -55,7 +70,6 @@ export function computeUphillSides(
   })
   const { regionAt, regionCount } = labelRegions(frame, contourAt)
   const sides = lines.map(line => sideRegions(frame, regionAt, line.points))
-  const evidence = uphillEvidence(lines, features)
   const levels = solveRegionLevels(
     regionCount,
     sides,
@@ -224,7 +238,26 @@ function mostVoted(votes: ReadonlyMap<number, number>): number {
   return best
 }
 
-function uphillEvidence(lines: readonly ContourLine[], features: readonly MapFeature[]): Int8Array {
+// The uphill side of a line drawn the map's way, from the ticks and closed contours, each read
+// against its own line's drawing direction; null when nothing tells.
+function uphillSideOfDrawing(
+  lines: readonly ContourLine[],
+  drawn: Int8Array,
+  tickVotes: Int32Array,
+  evidence: Int8Array,
+): typeof LEFT_IS_UPHILL | typeof RIGHT_IS_UPHILL | null {
+  let vote = 0
+  lines.forEach((line, id) => {
+    if (tickVotes[id]! !== 0) {
+      vote += Math.sign(tickVotes[id]!) * drawn[id]! * SLOPE_TICK_WEIGHT_AGAINST_RINGS
+    } else if (line.isClosed) {
+      vote += evidence[id]! * drawn[id]!
+    }
+  })
+  return vote > 0 ? LEFT_IS_UPHILL : vote < 0 ? RIGHT_IS_UPHILL : null
+}
+
+function slopeTickVotes(lines: readonly ContourLine[], features: readonly MapFeature[]) {
   const tickVotes = new Int32Array(lines.length)
   for (const feature of features) {
     if (feature.isomCode !== SLOPE_TICK_ISOM_CODE || feature.geometry.type !== 'Point') continue
@@ -238,7 +271,10 @@ function uphillEvidence(lines: readonly ContourLine[], features: readonly MapFea
     const pointsLeft = (b[0] - a[0]) * downhillY - (b[1] - a[1]) * downhillX > 0
     tickVotes[nearest.line]! += pointsLeft ? RIGHT_IS_UPHILL : LEFT_IS_UPHILL
   }
+  return tickVotes
+}
 
+function uphillEvidence(lines: readonly ContourLine[], tickVotes: Int32Array): Int8Array {
   return Int8Array.from(lines, (line, id): UphillSide => {
     if (tickVotes[id]! !== 0) return Math.sign(tickVotes[id]!) as UphillSide
     if (!line.isClosed) return UPHILL_UNKNOWN
