@@ -16,6 +16,7 @@ import {
   convexHullArea,
   crowdingCounts,
   findControlSites,
+  findPeripheralInformation,
   fitPrintAreaToCourse,
   legLengths,
   mappedAreaWithin,
@@ -24,6 +25,7 @@ import {
   routeDoglegOverlaps,
   setCourseOnPaper,
   signedTurns,
+  withMapContourInterval,
   type Terrain,
 } from '@ratamestari/engine'
 import { describeControl, readCourseData, type ImportedCourseData } from '@ratamestari/iof'
@@ -130,7 +132,7 @@ for (const courseFile of courseFiles) {
   const mapFile = await mapContaining(data, scale)
   if (!mapFile) continue
   const map = await loadMap(mapFile)
-  const terrain = buildTerrain(map.features(), map.info.extent)
+  const terrain = terrainOf(map)
   const centre = firstStops[firstStops.length - 1]!
   benchmarked.push({
     title: `## ${courseFile.replace(COURSES_SUFFIX, '')} (${data.courses.length} reference courses)`,
@@ -375,9 +377,15 @@ async function runInParallel(
   return results
 }
 
+function terrainOf(map: OcadMap) {
+  const terrain = buildTerrain(map.features(), map.info.extent)
+  const peripheral = findPeripheralInformation(map.annotations(), terrain, map.info.scale)
+  return withMapContourInterval(terrain, peripheral)
+}
+
 async function runSearchJob({ mapFile, format, seed, centre }: SearchJob) {
   const map = await loadMap(mapFile)
-  const terrain = buildTerrain(map.features(), map.info.extent)
+  const terrain = terrainOf(map)
   const sites = findControlSites(map.features(), terrain).filter(s => describeControl(s) !== null)
   const target = courseTargetFor({
     eventLevel: 'finnishChampionship',

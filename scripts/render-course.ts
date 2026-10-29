@@ -7,6 +7,7 @@ import { localPoint, type LocalPoint } from '@ratamestari/core'
 import {
   buildTerrain,
   withContourInterval,
+  withMapContourInterval,
   cellCenterOf,
   evaluateLeg,
   findControlSites,
@@ -30,7 +31,6 @@ import { svgDocument } from './svg-document'
 import { svgToPdf } from './svg-to-pdf'
 import {
   courseRequestSchema,
-  DEFAULT_CONTOUR_INTERVAL_METERS,
   PAPER,
   printScaleFor,
   printScaleSchema,
@@ -93,10 +93,10 @@ const peripheral = findPeripheralInformation(
   terrainAtStandardInterval,
   map.info.scale,
 )
-const contourIntervalMeters = values['contour-interval']
-  ? Number(values['contour-interval'])
-  : (peripheral.contourIntervalMetres ?? DEFAULT_CONTOUR_INTERVAL_METERS.value)
-const terrain = withContourInterval(terrainAtStandardInterval, contourIntervalMeters)
+const terrain = values['contour-interval']
+  ? withContourInterval(terrainAtStandardInterval, Number(values['contour-interval']))
+  : withMapContourInterval(terrainAtStandardInterval, peripheral)
+const { contourIntervalMeters } = terrain
 const sites = findControlSites(features, terrain).filter(
   site => describeControl(site) !== null && !isInPeripheralBlock(peripheral, site.position),
 )

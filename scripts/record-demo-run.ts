@@ -24,6 +24,7 @@ import {
   peripheralLayout,
   planCourse,
   setCourseOnPaper,
+  withMapContourInterval,
   type ControlSiteCandidate,
 } from '@ratamestari/engine'
 import { describeControl, descriptionSheet, renderDescriptionSheet } from '@ratamestari/iof'
@@ -91,8 +92,13 @@ const PREVIEW_COLOURS = {
 
 const map = await loadOcadMap(new Uint8Array(readFileSync(values.map)))
 const features = map.features()
-const terrain = buildTerrain(features, map.info.extent)
-const peripheral = findPeripheralInformation(map.annotations(), terrain, map.info.scale)
+const terrainAtStandardInterval = buildTerrain(features, map.info.extent)
+const peripheral = findPeripheralInformation(
+  map.annotations(),
+  terrainAtStandardInterval,
+  map.info.scale,
+)
+const terrain = withMapContourInterval(terrainAtStandardInterval, peripheral)
 const sites = findControlSites(features, terrain).filter(
   site => describeControl(site) !== null && !isInPeripheralBlock(peripheral, site.position),
 )

@@ -9,6 +9,7 @@ import {
   type CostGridOptions,
 } from './cost-grid'
 import { mappedAreaMask } from './mapped-area'
+import type { PeripheralInformation } from './peripheral'
 
 export interface Terrain {
   readonly grid: CostGrid
@@ -62,6 +63,11 @@ export function buildTerrain(
     ),
   }
 }
+
+export const withMapContourInterval = (
+  terrain: Terrain,
+  { contourIntervalMetres }: Pick<PeripheralInformation, 'contourIntervalMetres'>,
+) => withContourInterval(terrain, contourIntervalMetres ?? DEFAULT_CONTOUR_INTERVAL_METERS.value)
 
 // The interval is often known only after the terrain is built: read from the map's margin texts,
 // or set by the user. Only the climb charged per contour depends on it.
