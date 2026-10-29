@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { TECHNICAL_AREAS } from '../src/course-quality'
-import { courseRequestSchema, courseTargetFor, type CourseRequest } from '../src/course-request'
+import {
+  courseRequestSchema,
+  courseTargetFor,
+  SITE_DIFFICULTY_BY_COLOUR,
+  type CourseRequest,
+} from '../src/course-request'
 import {
   courseTargetForPurpose,
   TRAINING_DEFAULTS,
@@ -38,33 +43,27 @@ describe('TRAINING_DEFAULTS', () => {
 })
 
 describe('trainingTargetFor', () => {
-  it("keeps the class's competition target where the training rules leave it", () => {
-    const target = trainingTargetFor(request, TRAINING_DEFAULTS.contour.long)
-    const competition = courseTargetFor(request)!
-    expect(target?.winningTime).toEqual(competition.winningTime)
-    expect(target?.siteDifficulty).toEqual(competition.siteDifficulty)
-  })
-
-  it("uses the user's own winning time and difficulty range", () => {
+  it("takes the training's own winning time and the difficulty of its course colour", () => {
     const rules = {
       ...TRAINING_DEFAULTS.contour.long,
       winningTime: { minMinutes: 40, maxMinutes: 50, targetMinutes: 45 },
-      siteDifficulty: [2, 4] as [number, number],
+      skillColour: 'orange' as const,
     }
-    const target = trainingTargetFor(request, rules)
-    expect(target?.winningTime).toEqual(rules.winningTime)
-    expect(target?.siteDifficulty).toEqual([2, 4])
+    const target = trainingTargetFor(rules)
+    expect(target.winningTime).toEqual(rules.winningTime)
+    expect(target.skillColour).toBe('orange')
+    expect(target.siteDifficulty).toEqual([...SITE_DIFFICULTY_BY_COLOUR.orange])
   })
 
-  it('cites the training defaults next to the competition sources', () => {
-    const target = trainingTargetFor(request, TRAINING_DEFAULTS.contour.long)
-    expect(target?.sources.map(source => source.document)).toContain('Ratamestari defaults')
+  it('cites the training defaults', () => {
+    const target = trainingTargetFor(TRAINING_DEFAULTS.contour.long)
+    expect(target.sources.map(source => source.document)).toEqual(['Ratamestari defaults'])
   })
 })
 
 describe('trainingWinningTimeFor', () => {
   it('aims at the time asked for, with a window around it', () => {
-    const time = trainingWinningTimeFor(60)!
+    const time = trainingWinningTimeFor(60)
     expect(time.targetMinutes).toBe(60)
     expect(time.minMinutes).toBeLessThan(60)
     expect(time.maxMinutes).toBeGreaterThan(60)
@@ -75,6 +74,13 @@ describe('trainingRulesFor', () => {
   it('gives no training rules to a competition request, with or without a purpose', () => {
     expect(trainingRulesFor(request)).toBeNull()
     expect(trainingRulesFor({ ...request, purpose: 'competition' })).toBeNull()
+  })
+
+  it('needs no class: a training request without minutes gets the default time', () => {
+    const rules = trainingRulesFor({ ...request, purpose: 'training' })
+    expect(rules?.winningTime).toEqual(TRAINING_DEFAULTS.contour.long.winningTime)
+    const juniors = trainingRulesFor({ ...request, purpose: 'training', ageClass: 12 })
+    expect(juniors).toEqual(rules)
   })
 
   it("gives contour training the format's defaults and the minutes asked for", () => {
