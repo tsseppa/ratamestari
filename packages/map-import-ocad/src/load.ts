@@ -26,6 +26,8 @@ export interface MapSymbol {
   readonly number: number
   readonly name: string
   readonly objectCount: number
+  // Hidden symbols are not printed, so their objects give no features.
+  readonly isHidden: boolean
 }
 
 export interface OcadMap {
@@ -125,13 +127,14 @@ function readFeatures(file: OcadFile, scale: number): MapFeature[] {
 function usedSymbols(file: OcadFile): MapSymbol[] {
   const counts = new Map<number, number>()
   for (const { sym } of file.objects) counts.set(sym, (counts.get(sym) ?? 0) + 1)
-  const names = new Map(file.symbols.map(symbol => [symbol.symNum, symbol.description]))
+  const symbolsByNumber = new Map(file.symbols.map(symbol => [symbol.symNum, symbol]))
   return [...counts]
     .sort(([a], [b]) => a - b)
     .map(([number, objectCount]) => ({
       number,
-      name: names.get(number)?.trim() ?? '',
+      name: symbolsByNumber.get(number)?.description.trim() ?? '',
       objectCount,
+      isHidden: symbolsByNumber.get(number)?.isHidden() ?? false,
     }))
 }
 

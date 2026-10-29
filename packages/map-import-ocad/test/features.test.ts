@@ -21,10 +21,14 @@ const movementKindOf = (feature: MapFeature) =>
 describe.skipIf(!localMapExists)('OcadMap.features with a local map from git-ignored maps/', () => {
   const bytes = localMapExists ? readLocalMap() : new Uint8Array()
 
-  it('reads nearly every object as a feature', async () => {
+  it('reads nearly every object of a printed symbol as a feature', async () => {
     const map = await loadOcadMap(bytes)
-    expect(map.features().length).toBeLessThanOrEqual(map.objectCount)
-    expect(map.features().length).toBeGreaterThanOrEqual(0.99 * map.objectCount)
+    const printedObjectCount = map
+      .symbols()
+      .filter(symbol => !symbol.isHidden)
+      .reduce((sum, symbol) => sum + symbol.objectCount, 0)
+    expect(map.features().length).toBeLessThanOrEqual(printedObjectCount)
+    expect(map.features().length).toBeGreaterThanOrEqual(0.99 * printedObjectCount)
   })
 
   it('places all features inside the map extent', async () => {

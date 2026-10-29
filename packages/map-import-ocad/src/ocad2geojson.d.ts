@@ -18,6 +18,7 @@ declare module 'ocad2geojson/src/ocad-reader' {
     symNum: number
     description: string
     type: number
+    isHidden(): boolean
   }
 
   export interface OcadObject {

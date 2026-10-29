@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from 'vitest'
 import { localPoint, type LocalPoint } from '@ratamestari/core'
 import { loadOcadMap } from '@ratamestari/map-import-ocad'
+import { isomSymbolRule } from '@ratamestari/rules'
 import { BLOCKED, type CostGrid } from '../src/cost-grid'
 import { findControlSites } from '../src/control-sites'
 import { evaluateLeg } from '../src/leg'
@@ -12,6 +13,12 @@ import { localMapExists, readLocalMap } from './local-map'
 
 const LEG_LENGTH_METERS = 2000
 const LARGE_MAP_SETUP_TIMEOUT_MS = 60_000
+const BARRIER_MOVEMENTS = new Set([
+  'impassable',
+  'forbidden',
+  'forbiddenAlong',
+  'forbiddenExceptLevelCrossings',
+])
 
 describe.skipIf(!localMapExists)('engine with a local map from git-ignored maps/', () => {
   let terrain: Terrain
@@ -54,14 +61,19 @@ describe.skipIf(!localMapExists)('engine with a local map from git-ignored maps/
     to = cellCenterOf(grid, bestIndex)
   }, LARGE_MAP_SETUP_TIMEOUT_MS)
 
-  it('finds the mapped area, with open terrain and barriers inside it', () => {
+  // A contour-only map, such as one made with Karttapullautin, may have no barriers at all.
+  it('finds the mapped area, with open terrain and any barriers inside it', () => {
+    const hasBarriers = features.some(
+      ({ isomCode }) =>
+        isomCode !== null && BARRIER_MOVEMENTS.has(isomSymbolRule(isomCode)?.movement.kind ?? ''),
+    )
     const mappedCells = [...terrain.mappedArea.keys()].filter(i => terrain.mappedArea[i])
     const mappedShare = mappedCells.length / terrain.mappedArea.length
     const blockedShare =
       mappedCells.filter(i => grid.speed[i] === BLOCKED).length / mappedCells.length
     expect(mappedShare).toBeGreaterThan(0.1)
     expect(mappedShare).toBeLessThan(1)
-    expect(blockedShare).toBeGreaterThan(0)
+    if (hasBarriers) expect(blockedShare).toBeGreaterThan(0)
     expect(blockedShare).toBeLessThan(0.5)
   })
 
