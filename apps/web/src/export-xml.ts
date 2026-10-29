@@ -14,8 +14,8 @@ export function downloadCourseXml(
   labels: Messages['labels'],
 ) {
   const xml = courseDataXml({
-    eventName: `${labels.eventLevels[request.eventLevel]}, ${labels.formats[request.format]}`,
-    className: courseNameOf(request),
+    eventName: `${request.purpose === 'training' ? labels.trainingCourse : labels.eventLevels[request.eventLevel]}, ${labels.formats[request.format]}`,
+    className: courseNameOf(request, labels.trainingCourse),
     course,
     sheet,
     map,

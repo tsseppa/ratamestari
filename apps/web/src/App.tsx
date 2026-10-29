@@ -525,9 +525,9 @@ export function App() {
         setDrawCourseKey(key => key + 1)
         track('course-set', {
           map: isSampleMap ? 'sample' : 'own',
-          level: nextRequest.eventLevel,
+          level: nextRequest.purpose === 'training' ? 'training' : nextRequest.eventLevel,
           format: nextRequest.format,
-          courseClass: courseNameOf(nextRequest),
+          courseClass: courseNameOf(nextRequest, 'training'),
           keptControls: aroundLeg ? 2 : (locks?.controls.length ?? 0),
         })
       } else setEditMessage(messages.course.noCourse)
@@ -1416,7 +1416,7 @@ export function App() {
                     course,
                     overprintLayout,
                     descriptionBox.sheet,
-                    `${courseNameOf(request)}-${request.format}.pdf`,
+                    `${courseNameOf(request, messages.labels.trainingCourse)}-${request.format}.pdf`,
                     peripheral,
                     scaleLine,
                   )

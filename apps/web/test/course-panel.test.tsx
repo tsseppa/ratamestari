@@ -151,26 +151,31 @@ describe('CoursePanel contour training', () => {
 
   afterEach(() => setExperimentalFeatures(false))
 
-  it('offers training in the event level menu only with experimental features on', () => {
+  it('asks for the course type only with experimental features on', () => {
     setExperimentalFeatures(false)
-    expect(render(true)).not.toContain(m.contourTraining)
+    expect(render(true)).not.toContain(m.purposeLine)
     setExperimentalFeatures(true)
-    expect(render(true)).toContain(m.contourTraining)
-    expect(render(true)).toContain(`aria-label="${m.eventLevelOrTraining}"`)
+    expect(render(true)).toContain(m.purposeLine)
+    expect(render(true)).toContain(m.purposes.training)
   })
 
-  it('keeps showing a training request after experimental features are turned off', () => {
+  it('keeps showing the course type for a training request after the features are off', () => {
     setExperimentalFeatures(false)
-    expect(render(true, null, null, TRAINING)).toContain(m.contourTraining)
+    expect(render(true, null, null, TRAINING)).toContain(m.purposeLine)
   })
 
-  it('shows the minutes and the training note only for training', () => {
+  it('asks a race for its class and a training course for its minutes instead', () => {
     setExperimentalFeatures(true)
-    const competition = render(true)
-    expect(competition).not.toContain(m.trainingMinutes)
-    expect(competition).not.toContain(m.contourTrainingNote)
+    const race = render(true)
+    expect(race).toContain(`aria-label="${m.className}"`)
+    expect(race).not.toContain(m.trainingMinutes)
+    expect(race).not.toContain(m.contourTrainingNote)
+
     const training = render(true, null, null, TRAINING)
+    expect(training).not.toContain(`aria-label="${m.className}"`)
+    expect(training).not.toContain(`aria-label="${m.eventLevel}"`)
     expect(training).toMatch(new RegExp(`aria-label="${m.trainingMinutes}"[^>]*value="75"`))
+    expect(training).toContain(m.trainingKinds.contour)
     expect(training).toContain(m.contourTrainingNote)
   })
 })

@@ -163,8 +163,10 @@ export const en = {
     courseLine: 'Course',
     eventLevel: 'Event level',
     eventLevels: { national: 'National level', finnishChampionship: 'SM level' },
-    eventLevelOrTraining: 'Event level or training',
-    contourTraining: 'Contour training',
+    purposeLine: 'Course type',
+    purposes: { competition: 'Race', training: 'Training' },
+    trainingKind: 'Kind of training',
+    trainingKinds: { contour: 'Contour training' },
     contourTrainingNote:
       'Contour training sends the course to the hillsides with the most contour detail. The winning time is yours to set; the other values are Ratamestari’s defaults, not IOF or SSL rules.',
     trainingMinutes: 'Training winning time in minutes',
@@ -391,6 +393,7 @@ export const en = {
   },
   // Printed on the description box and written into IOF XML files.
   labels: {
+    trainingCourse: 'Training',
     eventLevels: {
       national: 'National event',
       finnishChampionship: 'Finnish championship (SM) final',

@@ -773,6 +773,7 @@ Where the values live:
 
 - Hard rule 3 is reworded: rule numbers come from IOF and SSL documents. Training defaults are our own, cite `Ratamestari defaults`, and the user can change them.
 - The spec (Zod) gets `purpose`, `trainingKind` and the training rules.
+- A training course has no class (decided 2026-10-29). In the workspace the course type (race or training, race by default) comes before the course details: a race asks for level, distance and class; training asks for its kind, distance and winning time. Its control difficulty is a course colour from the training rules (black by default), and it is printed and exported under the name "Training". The `course-set` analytics event (D23) gives it the level and class `training`.
 - The assistant can pick the purpose and training kind and pass numbers the user said ("a 60-minute course"). It never makes up training values (D2), and it can report contour-detail statistics as words (D17).
 - New engine module for contour detail. `site-quality.ts` and `areas.ts` take the quality measure from the training kind. Candidate sites are limited to the printed set.
 - The map view, print page and PDF draw only the printed set (the `renderSvg` object filter). Layers can show the full map for reference.

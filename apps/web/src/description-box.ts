@@ -25,7 +25,7 @@ export function descriptionBoxFor(
 ): DescriptionBox {
   const sheet = descriptionSheet(course, {
     title: labels.formats[request.format],
-    courseName: courseNameOf(request),
+    courseName: courseNameOf(request, labels.trainingCourse),
   })
   const rendered = renderDescriptionSheet(sheet, {
     pixelsPerMillimetre: DISPLAY_PIXELS_PER_MILLIMETRE,

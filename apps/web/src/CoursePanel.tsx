@@ -2,10 +2,12 @@ import { describeFinding, OUR_CHECK, OUR_CHECK_NO_ROUTES, type Severity } from '
 import { CONTROL_FEATURE_MATCH_METRES, type Course } from '@ratamestari/engine'
 import {
   ageClassSchema,
+  coursePurposeSchema,
   eventLevelSchema,
   formatSchema,
   sexSchema,
   skillLetterSchema,
+  trainingKindSchema,
   type CourseRequest,
   ACUTE_ANGLE,
 } from '@ratamestari/rules'
@@ -13,12 +15,7 @@ import { useEffect, useState } from 'react'
 import { offeredAgeClasses, withOfferedClass } from './class-choice'
 import { useExperimentalFeatures } from './experimental'
 import { useFormat, useMessages } from './i18n'
-import {
-  purposeChoiceOf,
-  TRAINING_CHOICE,
-  trainingMinutesFrom,
-  withPurposeChoice,
-} from './purpose-choice'
+import { purposeOf, trainingMinutesFrom, trainingMinutesOf, withPurpose } from './purpose-choice'
 import type { KeptCount } from './kept'
 import { LockIcon } from './LegRoutesPanel'
 import {
@@ -73,6 +70,8 @@ export function CoursePanel(props: Props) {
   const { hasCentre, isPickingCentre, onMoveCentre, course, check } = props
   const m = useMessages()
   const isMeasured = course !== null && course.lengthMeters !== null
+  const isTraining = purposeOf(props.request) === 'training'
+  const offersTraining = useExperimentalFeatures()
 
   if (check) {
     return (
@@ -166,7 +165,14 @@ export function CoursePanel(props: Props) {
 
       {hasCentre && !isPickingCentre && (
         <>
-          <RequestSentence request={props.request} onRequestChange={props.onRequestChange} />
+          {(offersTraining || isTraining) && (
+            <PurposeSentence request={props.request} onRequestChange={props.onRequestChange} />
+          )}
+          {isTraining ? (
+            <TrainingSentence request={props.request} onRequestChange={props.onRequestChange} />
+          ) : (
+            <RequestSentence request={props.request} onRequestChange={props.onRequestChange} />
+          )}
           {course && <CourseFigures course={course} />}
           {course && isMeasured && (
             <Findings
@@ -194,12 +200,12 @@ function TrainingMinutes({
   minutes,
   onChange,
 }: {
-  minutes: number | undefined
+  minutes: number
   onChange: (minutes: number) => void
 }) {
   const m = useMessages().course
   const format = useFormat()
-  const [typed, setTyped] = useState(minutes === undefined ? '' : String(minutes))
+  const [typed, setTyped] = useState(String(minutes))
   return (
     <>
       {m.beforeTrainingMinutes}
@@ -218,6 +224,75 @@ function TrainingMinutes({
       />
       {format.minutesSuffix}
     </>
+  )
+}
+
+function PurposeSentence({ request, onRequestChange }: Pick<Props, 'request' | 'onRequestChange'>) {
+  const m = useMessages().course
+  return (
+    <section className="request" aria-labelledby="purpose-title">
+      <span id="purpose-title" className="panel-line-label">
+        {m.purposeLine}
+      </span>
+      <p className="request-sentence">
+        <select
+          className="request-token"
+          aria-label={m.purposeLine}
+          value={purposeOf(request)}
+          onChange={e =>
+            onRequestChange(withPurpose(request, coursePurposeSchema.parse(e.target.value)))
+          }
+        >
+          {coursePurposeSchema.options.map(purpose => (
+            <option key={purpose} value={purpose}>
+              {m.purposes[purpose]}
+            </option>
+          ))}
+        </select>
+      </p>
+    </section>
+  )
+}
+
+function TrainingSentence({
+  request,
+  onRequestChange,
+}: Pick<Props, 'request' | 'onRequestChange'>) {
+  const m = useMessages().course
+  const change = (fields: Partial<CourseRequest>) => onRequestChange({ ...request, ...fields })
+  return (
+    <section className="request" aria-labelledby="training-title">
+      <span id="training-title" className="panel-line-label">
+        {m.courseLine}
+      </span>
+      <p className="request-sentence">
+        <select className="request-token" aria-label={m.trainingKind} value="contour" disabled>
+          {trainingKindSchema.options.map(kind => (
+            <option key={kind} value={kind}>
+              {m.trainingKinds[kind]}
+            </option>
+          ))}
+        </select>{' '}
+        <select
+          className="request-token"
+          aria-label={m.distance}
+          value={request.format}
+          onChange={e => change({ format: formatSchema.parse(e.target.value) })}
+        >
+          {formatSchema.options.map(format => (
+            <option key={format} value={format}>
+              {m.formats[format]}
+            </option>
+          ))}
+        </select>
+        <TrainingMinutes
+          key={request.format}
+          minutes={trainingMinutesOf(request)}
+          onChange={trainingMinutes => change({ trainingMinutes })}
+        />
+      </p>
+      <p className="request-note">{m.contourTrainingNote}</p>
+    </section>
   )
 }
 
@@ -244,8 +319,6 @@ function RequestSentence({
     onRequestChange(choice.request)
   }
   const ages = offeredAgeClasses(request)
-  const offersTraining = useExperimentalFeatures()
-  const isTraining = request.purpose === 'training'
 
   return (
     <section className="request" aria-labelledby="request-title">
@@ -255,18 +328,15 @@ function RequestSentence({
       <p className="request-sentence">
         <select
           className="request-token"
-          aria-label={offersTraining ? m.eventLevelOrTraining : m.eventLevel}
-          value={purposeChoiceOf(request)}
-          onChange={e => change(withPurposeChoice(request, e.target.value))}
+          aria-label={m.eventLevel}
+          value={request.eventLevel}
+          onChange={e => change({ eventLevel: eventLevelSchema.parse(e.target.value) })}
         >
           {eventLevelSchema.options.map(level => (
             <option key={level} value={level}>
               {m.eventLevels[level]}
             </option>
           ))}
-          {(offersTraining || isTraining) && (
-            <option value={TRAINING_CHOICE}>{m.contourTraining}</option>
-          )}
         </select>{' '}
         <select
           className="request-token"
@@ -313,16 +383,8 @@ function RequestSentence({
             </option>
           ))}
         </select>
-        {isTraining && (
-          <TrainingMinutes
-            key={classValue(request.sex, request.ageClass)}
-            minutes={request.trainingMinutes}
-            onChange={trainingMinutes => change({ trainingMinutes })}
-          />
-        )}
       </p>
       <p className="request-note">{m.skillLevels[request.skillLetter]}</p>
-      {isTraining && <p className="request-note">{m.contourTrainingNote}</p>}
       {note && <p className="request-note">{note}</p>}
       {replacedClass && (
         <p className="request-note" role="status">
