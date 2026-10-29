@@ -3,6 +3,7 @@ import type { LocalPoint, MapAnnotation, MapFeature, MapInfo } from '@ratamestar
 import {
   addControl,
   buildTerrain,
+  withContourInterval,
   checkSetCourse,
   insertControlAt,
   recheckCourse,
@@ -61,6 +62,7 @@ import {
   courseTargetForPurpose,
   trainingRulesFor,
   printScaleFor,
+  DEFAULT_CONTOUR_INTERVAL_METERS,
   type CourseClass,
   type CourseRequest,
   type PrintScaleChoice,
@@ -77,6 +79,22 @@ let peripheral: PeripheralInformation | null = null
 let lastSetting: { spec: CourseSpec; paper: PaperChoice } | null = null
 let imported: ImportedCourseData | null = null
 let stopRequested = false
+let contourIntervalByUser: number | null = null
+
+export interface ContourInterval {
+  readonly meters: number
+  readonly readFromMap: number | null
+  readonly isSetByUser: boolean
+}
+
+function contourIntervalInUse(): ContourInterval {
+  const readFromMap = peripheral?.contourIntervalMetres ?? null
+  return {
+    meters: contourIntervalByUser ?? readFromMap ?? DEFAULT_CONTOUR_INTERVAL_METERS.value,
+    readFromMap,
+    isSetByUser: contourIntervalByUser !== null,
+  }
+}
 
 // The search pauses regularly; giving the event loop a turn there lets a stop message through.
 const SLICE_MILLISECONDS = 50
@@ -157,6 +175,7 @@ function useFeatures(
   terrain = buildTerrain(features, info.extent)
   overprintDetail = overprintDetailOf(features)
   peripheral = findPeripheralInformation(annotations, terrain, info.scale)
+  terrain = withContourInterval(terrain, contourIntervalInUse().meters)
   const inMargin = isInPeripheralBlock.bind(null, peripheral)
   sites = findControlSites(features, terrain).filter(
     site => describeControl(site) !== null && !inMargin(site.position),
@@ -164,15 +183,21 @@ function useFeatures(
 }
 
 const engine = {
-  async loadMap(bytes: Uint8Array, corrections: IsomCodeOverrides): Promise<void> {
+  async loadMap(
+    bytes: Uint8Array,
+    corrections: IsomCodeOverrides,
+    contourIntervalMeters: number | null,
+  ): Promise<void> {
     map = await loadOcadMap(bytes)
     mapInfo = map.info
+    contourIntervalByUser = contourIntervalMeters
     engine.applySymbolCorrections(corrections)
   },
 
   // For maps read outside the worker, such as from a PDF (D22).
   loadFeatures(features: readonly MapFeature[], info: MapInfo): void {
     map = null
+    contourIntervalByUser = null
     mapInfo = info
     useFeatures(features, [], info)
   },
@@ -184,6 +209,19 @@ const engine = {
 
   overprintLayout(course: Course): OverprintLayout {
     return layOutOverprint(course, overprintDetail)
+  },
+
+  contourInterval(): ContourInterval {
+    return contourIntervalInUse()
+  },
+
+  // Null goes back to the interval read from the map, or the standard one.
+  setContourInterval(meters: number | null): ContourInterval {
+    if (!terrain) throw new Error('No map loaded in the engine')
+    contourIntervalByUser = meters
+    const interval = contourIntervalInUse()
+    terrain = withContourInterval(terrain, interval.meters)
+    return interval
   },
 
   peripheralInformation(): PeripheralInformation {

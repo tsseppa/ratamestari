@@ -92,6 +92,12 @@ export const fi: Messages = {
       'Esimerkkikartta: Leirikangas, Hamina. © Vehkalahden Veikot, vain Ratamestarin kokeilemiseen.',
     sampleFailed: reason => `Esimerkkikarttaa ei voitu ladata: ${reason}`,
     mapLine: 'Kartta',
+    contourIntervalLine: 'Käyräväli',
+    contourIntervalFromMap: 'Luettu kartasta. Nousu ja reitit lasketaan sen mukaan.',
+    contourIntervalStandard: interval =>
+      `Kartassa ei mainita käyräväliä, joten käytetään normaalia ${interval}. Muuta, jos kartta on piirretty toisin.`,
+    contourIntervalSetByYou: 'Asetettu itse tälle kartalle. Nousu ja reitit lasketaan sen mukaan.',
+    contourIntervalReset: 'Käytä kartan',
     noMap: 'Karttaa ei ole vielä avattu',
     openingLine: fileName => `Avataan ${fileName}…`,
     mapValue: (fileName, scale) => `${fileName}, ${scale}`,

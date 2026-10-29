@@ -33,7 +33,8 @@ import { renderCostMap, type CostMapImage } from './cost-map-image'
 import { ChatPanel } from './ChatPanel'
 import { useAssistantKey } from './assistant-key'
 import { SettingsSheet } from './SettingsSheet'
-import { MapStart, PanelHeader, PanelLine } from './WorkspaceStart'
+import { ContourIntervalLine, MapStart, PanelHeader, PanelLine } from './WorkspaceStart'
+import { loadContourInterval, saveContourInterval } from './contour-interval'
 import { atLeastHalf, SheetHandle, sheetStyle, type SheetSize } from './SheetHandle'
 import { CoursePanel, hasCoarsePointer } from './CoursePanel'
 import { CourseRoutesPanel } from './CourseRoutesPanel'
@@ -61,7 +62,7 @@ import {
 import { track } from './analytics'
 import { courseNameOf } from './course-labels'
 import { createEngine, progressCallback } from './engine'
-import type { CheckedCourse, ImportedCourseSummary } from './engine.worker'
+import type { CheckedCourse, ContourInterval, ImportedCourseSummary } from './engine.worker'
 import type { CourseFileCheck } from './CheckPanel'
 import { withOfferedClass } from './class-choice'
 import { deduceClass, type DeducedClass } from './course-fit'
@@ -249,6 +250,7 @@ export function App() {
   const [undoHistory, setUndoHistory] = useState<readonly (Course | null)[]>([])
   const [mapKey, setMapKey] = useState<string | null>(null)
   const [corrections, setCorrections] = useState<SymbolCorrections>(new Map())
+  const [contourInterval, setContourInterval] = useState<ContourInterval | null>(null)
   const [editMessage, setEditMessage] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
   const paceSecondsPerKm = parsePace(paceText)
@@ -301,6 +303,16 @@ export function App() {
     void generateCourse(SAMPLE_MAP.request, seed, paceSecondsPerKm, centre)
   })
 
+  async function changeContourInterval(meters: number | null) {
+    setContourInterval(await engine.setContourInterval(meters))
+    if (mapKey) saveContourInterval(mapKey, meters)
+    if (course && !courseFile)
+      void editCourse(
+        current => engine.recheckAs(current, request, winnerPace, printScale),
+        messages.setByHand.noRulesForClass,
+      )
+  }
+
   async function openFile(file: File, map: 'sample' | 'own' = 'own') {
     track('map-opened', { map })
     setIsSampleMap(false)
@@ -315,8 +327,12 @@ export function App() {
     setMapKey(key)
     setCorrections(storedCorrections)
     engine
-      .loadMap(bytes, storedCorrections)
-      .then(() => setEngineState('ready'))
+      .loadMap(bytes, storedCorrections, loadContourInterval(key))
+      .then(() => engine.contourInterval())
+      .then(interval => {
+        setContourInterval(interval)
+        setEngineState('ready')
+      })
       .catch(() => setEngineState('error'))
     try {
       const t0 = performance.now()
@@ -348,6 +364,7 @@ export function App() {
     setPlannedLeg(null)
     setCompetitionCentre(null)
     setStartWish(null)
+    setContourInterval(null)
     setPlacedFrame(null)
     setIsPlacingFrame(false)
     stopSettingByHand()
@@ -1311,6 +1328,13 @@ export function App() {
               : undefined
           }
         />
+        {state.status === 'ready' && engineState === 'ready' && contourInterval && (
+          <ContourIntervalLine
+            key={`${mapKey}-${contourInterval.meters}`}
+            interval={contourInterval}
+            onChange={meters => void changeContourInterval(meters)}
+          />
+        )}
         {isSampleMap && <p className="note">{messages.workspace.sampleCredit}</p>}
         {engineState === 'loading' && <p className="note">{messages.map.building}</p>}
         {engineState === 'error' && <p className="error">{messages.map.engineError}</p>}

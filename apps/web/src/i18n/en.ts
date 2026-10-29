@@ -94,6 +94,12 @@ export const en = {
       'Sample map: Leirikangas, Hamina. © Vehkalahden Veikot, for trying Ratamestari only.',
     sampleFailed: (reason: string) => `The sample map could not be loaded: ${reason}`,
     mapLine: 'Map',
+    contourIntervalLine: 'Contour interval',
+    contourIntervalFromMap: 'Read from the map. Climb and routes are measured with it.',
+    contourIntervalStandard: (interval: string) =>
+      `The map does not say, so the standard ${interval} is used. Change it if the map is drawn otherwise.`,
+    contourIntervalSetByYou: 'Set by you for this map. Climb and routes are measured with it.',
+    contourIntervalReset: 'Use the map’s',
     noMap: 'No map open yet',
     openingLine: (fileName: string) => `Opening ${fileName}…`,
     mapValue: (fileName: string, scale: string) => `${fileName}, ${scale}`,

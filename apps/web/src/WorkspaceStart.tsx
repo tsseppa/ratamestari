@@ -1,5 +1,8 @@
 import { useExperimentalFeatures } from './experimental'
-import { useMessages } from './i18n'
+import { useState } from 'react'
+import { contourIntervalFrom } from './contour-interval'
+import type { ContourInterval } from './engine.worker'
+import { useFormat, useMessages } from './i18n'
 
 export type MapOpening =
   | { readonly status: 'empty' }
@@ -112,6 +115,58 @@ export function PanelLine({ label, value, isPending = false, action }: PanelLine
           </button>
         )}
       </span>
+    </div>
+  )
+}
+
+interface ContourIntervalLineProps {
+  readonly interval: ContourInterval
+  readonly onChange: (meters: number | null) => void
+}
+
+// Changed on leaving the field, as the course on the map is checked again with every change.
+export function ContourIntervalLine({ interval, onChange }: ContourIntervalLineProps) {
+  const m = useMessages().workspace
+  const format = useFormat()
+  const [typed, setTyped] = useState(String(interval.meters))
+  const commit = () => {
+    const meters = contourIntervalFrom(typed)
+    if (meters === null) setTyped(String(interval.meters))
+    else if (meters !== interval.meters) onChange(meters)
+  }
+  const source = interval.isSetByUser
+    ? m.contourIntervalSetByYou
+    : interval.readFromMap === null
+      ? m.contourIntervalStandard(format.metres(interval.meters))
+      : m.contourIntervalFromMap
+  return (
+    <div className="panel-line">
+      <span className="panel-line-label">{m.contourIntervalLine}</span>
+      <span className="panel-line-value">
+        <span>
+          <input
+            className="request-token"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step="any"
+            aria-label={m.contourIntervalLine}
+            value={typed}
+            onChange={e => setTyped(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => {
+              if (e.key === 'Enter') commit()
+            }}
+          />
+          {format.metresSuffix}
+        </span>
+        {interval.isSetByUser && (
+          <button type="button" className="panel-line-action" onClick={() => onChange(null)}>
+            {m.contourIntervalReset}
+          </button>
+        )}
+      </span>
+      <p className="request-note">{source}</p>
     </div>
   )
 }

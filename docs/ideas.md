@@ -18,7 +18,8 @@ Ideas mentioned while working, before they become a plan. One line each: date, i
 
 ## Map reading
 
-- 2026-10-29 · Use the contour interval printed on the map in the engine (it assumes 5 m, so a 2.5 m map doubles climb and slope cost), and a setting to override it · planned, next
+- 2026-10-29 · Use the contour interval printed on the map in the engine (it assumes 5 m, so a 2.5 m map doubles climb and slope cost), and a setting to override it · done
+- 2026-10-29 · Contour interval for PDF maps, and in the benchmark and recording scripts (they still assume 5 m) · idea
 - 2026-10-29 · Local-map tests pick the first map in `maps/`; skip ISOM-only checks on contour maps · idea
 
 ## Development
