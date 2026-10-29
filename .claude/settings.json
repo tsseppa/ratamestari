@@ -4,6 +4,6 @@
   },
   "permissions": {
     "allow": ["Bash(pnpm check)", "Bash(pnpm test*)", "Bash(pnpm typecheck)", "Bash(pnpm format)"],
-    "deny": ["Read(./maps/**)", "Read(./.env*)", "Bash(git push*)", "Bash(rm -rf*)"]
+    "deny": ["Read(./.env*)", "Bash(git push*)", "Bash(rm -rf*)"]
   }
 }
