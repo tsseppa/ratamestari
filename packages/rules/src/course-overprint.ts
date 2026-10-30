@@ -47,6 +47,8 @@ export const overprintGroundMetres = (millimetresAtBaseScale: number) =>
 export const overprintLayoutRuleSchema = citedSchema.extend({
   numberGapMillimetres: z.number().nonnegative(),
   numberPositions: z.int().min(4),
+  numberRings: z.int().min(1),
+  numberRingStepMillimetres: z.number().positive(),
   numberWidthShareOfHeightPerDigit: z.number().positive(),
   numberInkHeightShareOfFontSize: z.number().positive(),
   cutClearanceMillimetres: z.number().nonnegative(),
@@ -63,6 +65,9 @@ export type OverprintLayoutRule = z.infer<typeof overprintLayoutRuleSchema>
 export const OVERPRINT_LAYOUT: OverprintLayoutRule = {
   numberGapMillimetres: 0.5,
   numberPositions: 16,
+  // Farther rings only when every position nearer the circle is ruled out.
+  numberRings: 3,
+  numberRingStepMillimetres: 1,
   // Arial digits are about 0.56 of the font size wide, and their ink about 0.72 of it tall.
   numberWidthShareOfHeightPerDigit: 0.56,
   numberInkHeightShareOfFontSize: 0.72,

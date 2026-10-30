@@ -40,6 +40,7 @@ import {
   legOfFeature,
   previewControlFeature,
   previewControlStyle,
+  numberOfFeature,
   shortenedLeg,
   STOP_INDEX,
   type CourseHit,
@@ -258,6 +259,7 @@ interface Props {
   onPlannedLegChanged: (plan: PlannedLeg) => void
   onCentrePicked: (centre: LocalPoint) => void
   onStopMoved: (stopIndex: number, to: LocalPoint) => void
+  onNumberMoved: (controlNumber: number, to: LocalPoint) => void
   canEditCourse: boolean
   isSettingByHand: boolean
   selectedStop: number | null
@@ -296,6 +298,7 @@ export function MapView({
   onPlannedLegChanged,
   onCentrePicked,
   onStopMoved,
+  onNumberMoved,
   canEditCourse,
   isSettingByHand,
   selectedStop,
@@ -334,7 +337,7 @@ export function MapView({
         // A finger panning the map must not move a control by accident, so on touch only the
         // selected stop or the ends of the selected leg can be dragged.
         filter: feature => {
-          const stop = feature.get(STOP_INDEX)
+          const stop = numberOfFeature(feature) ?? feature.get(STOP_INDEX)
           if (typeof stop !== 'number') return false
           if (lastPointerType.current !== 'touch') return true
           if (stop === selectedStopRef.current) return true
@@ -346,6 +349,8 @@ export function MapView({
   )
   const onStopMovedRef = useRef(onStopMoved)
   onStopMovedRef.current = onStopMoved
+  const onNumberMovedRef = useRef(onNumberMoved)
+  onNumberMovedRef.current = onNumberMoved
   const [centreSource] = useState(() => new VectorSource())
   const [keptSource] = useState(() => new VectorSource())
   const [suggestionSource] = useState(() => new VectorSource())
@@ -508,6 +513,13 @@ export function MapView({
 
     const reportStopMoved = (event: TranslateEvent) => {
       const feature = event.features.item(0)
+      const numberOf = feature && numberOfFeature(feature)
+      const numberAt = feature?.getGeometry()
+      if (numberOf && numberAt instanceof Point) {
+        const [x = 0, y = 0] = numberAt.getCoordinates()
+        onNumberMovedRef.current(numberOf, localPoint(x, y))
+        return
+      }
       const stopIndex = feature?.get(STOP_INDEX)
       const geometry = feature?.getGeometry()
       if (typeof stopIndex !== 'number' || !geometry) return

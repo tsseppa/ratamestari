@@ -92,7 +92,8 @@ const technicalAreaRuleOf = (spec: CourseSpec) =>
   spec.training?.technicalAreas ?? TECHNICAL_AREAS[spec.format]
 
 export interface Finding {
-  readonly kind: keyof CourseProblems
+  // numberOverCircle comes from the overprint layout, not the course search.
+  readonly kind: keyof CourseProblems | 'numberOverCircle'
   readonly stops: readonly number[]
 }
 
@@ -112,6 +113,9 @@ export interface CourseProblems {
   readonly controlsWithoutFeature: number
 }
 
+// Where a control number placed by hand sits, in ground metres from its control's centre.
+export type NumberOffset = readonly [dx: number, dy: number]
+
 export interface Course {
   readonly seed: number
   readonly start: ControlSiteCandidate
@@ -129,6 +133,8 @@ export interface Course {
   readonly findings: readonly Finding[]
   readonly breakdown: ScoreBreakdown
   readonly score: number
+  // One per control; null leaves the number to the overprint layout.
+  readonly numberOffsets?: readonly (NumberOffset | null)[]
 }
 
 interface LegProfile {

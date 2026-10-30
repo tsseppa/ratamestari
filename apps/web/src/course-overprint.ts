@@ -184,6 +184,7 @@ function overprintStyle(
 }
 
 export const STOP_INDEX = 'stopIndex'
+const NUMBER_OF = 'numberOf'
 const STOP = 'stop'
 const LEG_INDEX = 'legIndex'
 
@@ -247,7 +248,14 @@ function controlNumber(at: LocalPoint, number: number): Feature {
     geometry: new Point([...at]),
     kind: 'label' satisfies Kind,
     label: number,
+    [NUMBER_OF]: number,
   })
+}
+
+// A number is dragged on its own, leaving its control where it is.
+export function numberOfFeature(feature: FeatureLike): number | null {
+  const control = feature.get(NUMBER_OF)
+  return typeof control === 'number' ? control : null
 }
 
 export function shortenedLeg(

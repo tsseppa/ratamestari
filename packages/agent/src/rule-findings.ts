@@ -4,6 +4,7 @@ import {
   CONTROL_CIRCLE,
   CONTROL_SITE_DIFFICULTY,
   FOREST_CONTROL_SPACING,
+  isom,
   lajisaannot,
   type Source,
 } from '@ratamestari/rules'
@@ -96,5 +97,15 @@ export function describeFinding(finding: Finding, controlCount: number): Finding
       )
     case 'finalLegTooLong':
       return describe('note', `the last leg into the finish is long`, OUR_CHECK)
+    // Fixed by moving the number, not by replacing the control.
+    case 'numberOverCircle':
+      return {
+        ...describe(
+          'error',
+          `the number of ${name(a)} covers ${a === b ? 'its own circle' : b >= 1 && b <= controlCount ? `the circle of ${name(b)}` : name(b)}`,
+          citations([isom('sym. 704')]),
+        ),
+        fixableControl: null,
+      }
   }
 }

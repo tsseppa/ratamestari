@@ -38,6 +38,7 @@ const renderPanel = (
     onStop={ignore}
     onTryAnother={ignore}
     kept={null}
+    overprintFindings={[]}
     onForgetKept={ignore}
     course={null}
     isEditing={false}

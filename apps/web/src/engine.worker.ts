@@ -16,6 +16,7 @@ import {
   findPeripheralInformation,
   isInPeripheralBlock,
   layOutOverprint,
+  numberOffsetsCarried,
   overprintDetailOf,
   NO_OVERPRINT_DETAIL,
   type OverprintDetailIndex,
@@ -162,11 +163,18 @@ function fittedAsSet(
     : fitCourseToPaper(terrain, course, papersFor(paper), spec.printScale, spec.peripheralSize)
 }
 
-function editedCourse(course: Course, edit: (spec: CourseSpec) => Course | null): Course | null {
+function editedCourse(
+  course: Course,
+  edit: (spec: CourseSpec) => Course | null,
+  movedControlNumber: number | null = null,
+): Course | null {
   if (!terrain || !lastSetting) throw new Error('Set a course before editing it')
   const { spec } = lastSetting
   const edited = edit({ ...spec, ...(course.printArea && { printArea: course.printArea }) })
-  return edited && fittedAsSet(edited, terrain, lastSetting)
+  return (
+    edited &&
+    numberOffsetsCarried(course, fittedAsSet(edited, terrain, lastSetting), movedControlNumber)
+  )
 }
 
 function useFeatures(
@@ -383,7 +391,11 @@ const engine = {
   },
 
   moveControl(course: Course, stopIndex: number, to: LocalPoint): Course | null {
-    return editedCourse(course, spec => moveControl(terrain!, sites, spec, course, stopIndex, to))
+    return editedCourse(
+      course,
+      spec => moveControl(terrain!, sites, spec, course, stopIndex, to),
+      stopIndex,
+    )
   },
 
   fixControl(

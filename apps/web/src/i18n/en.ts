@@ -48,6 +48,8 @@ const findingTexts: Record<Finding['kind'], FindingText> = {
   controlsWithoutFeature: ([a = 0], f, { featureMatchMetres }) =>
     `no map feature found within ${featureMatchMetres} m of ${stopNamed(a, f)}; check the position`,
   finalLegTooLong: () => 'the last leg into the finish is long',
+  numberOverCircle: ([a = 0, b = 0], f) =>
+    `the number of ${stopNamed(a, f)} covers ${a === b ? 'its own circle' : b === 0 || b === f ? stopNamed(b, f) : `the circle of ${stopNamed(b, f)}`}`,
 }
 
 export const en = {
@@ -210,8 +212,9 @@ export const en = {
     fix: 'Fix',
     fixControl: (control: number) => `Fix control ${control}`,
     dragHint:
-      'Drag a control, the start or the finish on the map to move it. The rules are checked again.',
-    dragHintTouch: 'Tap a leg, then drag one of its controls. The rules are checked again.',
+      'Drag a control, the start or the finish on the map to move it, or a control number to move only the number. The rules are checked again.',
+    dragHintTouch:
+      'Tap a leg, then drag one of its controls or their numbers. The rules are checked again.',
     setCourse: 'Set course',
     setting: 'Setting the course…',
     stop: 'Stop',

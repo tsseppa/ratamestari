@@ -1,5 +1,5 @@
 import { describeFinding, OUR_CHECK, OUR_CHECK_NO_ROUTES, type Severity } from '@ratamestari/agent'
-import { CONTROL_FEATURE_MATCH_METRES, type Course } from '@ratamestari/engine'
+import { CONTROL_FEATURE_MATCH_METRES, type Course, type Finding } from '@ratamestari/engine'
 import {
   ageClassSchema,
   coursePurposeSchema,
@@ -53,6 +53,8 @@ interface Props {
   kept: KeptCount | null
   onForgetKept: () => void
   course: Course | null
+  // Found on the laid-out overprint rather than by the course search.
+  overprintFindings: readonly Finding[]
   isEditing: boolean
   isPreparingPdf: boolean
   onDownloadPdf: () => void
@@ -121,6 +123,7 @@ export function CoursePanel(props: Props) {
             {isMeasured && (
               <Findings
                 course={course}
+                overprintFindings={props.overprintFindings}
                 isEditing={props.isEditing}
                 onFix={props.onFixControl}
                 fixLabel={m.check.suggest}
@@ -180,6 +183,7 @@ export function CoursePanel(props: Props) {
           {course && isMeasured && (
             <Findings
               course={course}
+              overprintFindings={props.overprintFindings}
               isEditing={props.isEditing}
               onFix={props.onFixControl}
               fixLabel={m.course.fix}
@@ -436,12 +440,14 @@ function CourseFigures({ course }: { course: Course }) {
 
 function Findings({
   course,
+  overprintFindings,
   isEditing,
   onFix,
   fixLabel,
   fixLabelFor,
 }: {
   course: Course
+  overprintFindings: readonly Finding[]
   isEditing: boolean
   onFix: (controlNumber: number) => void
   fixLabel: string
@@ -450,7 +456,7 @@ function Findings({
   const { course: m, findings: texts } = useMessages()
   const finishStop = course.controls.length + 1
   // The severity, rule and Fix target come from the agent package; the words from the catalogue.
-  const findings = course.findings.map(finding => {
+  const findings = [...course.findings, ...overprintFindings].map(finding => {
     const described = describeFinding(finding, course.controls.length)
     const text = texts.texts[finding.kind](finding.stops, finishStop, FINDING_LIMITS)
     return {

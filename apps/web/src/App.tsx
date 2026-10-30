@@ -4,6 +4,7 @@ import {
   centreOfExtent,
   hasRoomForCentre,
   printFrameAround,
+  withNumberAt,
   type ControlSiteCandidate,
   type Course,
   type Orientation,
@@ -860,6 +861,13 @@ export function App() {
     )
   }
 
+  function moveNumber(controlNumber: number, to: LocalPoint) {
+    void editByHand(
+      async current => current && withNumberAt(current, controlNumber, to),
+      messages.course.moveRefused,
+    )
+  }
+
   async function moveStop(stopIndex: number, to: LocalPoint) {
     const before = course
     const isFinish = before !== null && stopIndex === before.controls.length + 1
@@ -1264,6 +1272,7 @@ export function App() {
               )
             }
             onStopMoved={(stop, to) => void moveStop(stop, to)}
+            onNumberMoved={moveNumber}
           />
         ) : (
           <MapStart opening={state} isDraggingOver={isDraggingOver} onChooseFile={chooseMapFile} />
@@ -1401,6 +1410,7 @@ export function App() {
             kept={course && keptCount(kept, course)}
             onForgetKept={() => setKept(NOTHING_KEPT)}
             course={course}
+            overprintFindings={overprintLayout?.findings ?? []}
             isEditing={isEditing || isGenerating}
             isPreparingPdf={isPreparingPdf}
             check={fileCheck}

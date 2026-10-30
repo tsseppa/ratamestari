@@ -46,6 +46,8 @@ const findingTexts = {
   controlsWithoutFeature: ([a = 0], f, { featureMatchMetres }: FindingLimits) =>
     `${genitive(a, f)} ${featureMatchMetres} metrin säteellä ei ole kartalla kohdetta; tarkista paikka`,
   finalLegTooLong: () => 'viimeinen rastiväli maaliin on pitkä',
+  numberOverCircle: ([a = 0, b = 0], f) =>
+    `${genitive(a, f)} numero peittää ${a === b ? 'oman rastiympyränsä' : b === 0 || b === f ? `${genitive(b, f)} merkin` : `${genitive(b, f)} rastiympyrän`}`,
 } satisfies Record<keyof Messages['findings']['texts'], FindingText>
 
 export const fi: Messages = {
@@ -207,8 +209,9 @@ export const fi: Messages = {
     fix: 'Korjaa',
     fixControl: control => `Korjaa rasti ${control}`,
     dragHint:
-      'Vedä rastia, lähtöä tai maalia kartalla siirtääksesi sitä. Säännöt tarkistetaan uudelleen.',
-    dragHintTouch: 'Napauta rastiväliä ja vedä sitten sen rastia. Säännöt tarkistetaan uudelleen.',
+      'Vedä rastia, lähtöä tai maalia kartalla siirtääksesi sitä, tai rastinumeroa siirtääksesi vain numeroa. Säännöt tarkistetaan uudelleen.',
+    dragHintTouch:
+      'Napauta rastiväliä ja vedä sitten sen rastia tai rastinumeroa. Säännöt tarkistetaan uudelleen.',
     setCourse: 'Tee rata',
     setting: 'Rataa tehdään…',
     stop: 'Pysäytä',

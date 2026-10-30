@@ -12,7 +12,7 @@ import {
   overprintGroundMetres as mm,
   type OverprintDetail,
 } from '@ratamestari/rules'
-import type { Course } from './course-search'
+import type { Course, Finding } from './course-search'
 import { distanceToSegment } from './polyline'
 import { reservedBoxesOf } from './print-area'
 
@@ -32,6 +32,8 @@ export interface OverprintLayout {
   readonly circleCuts: readonly (readonly Arc[])[]
   // The drawn pieces of each leg, from the start to the finish.
   readonly legPieces: readonly (readonly LinePiece[])[]
+  // Numbers that cover a circle, the start or the finish: [control, stop it covers].
+  readonly findings: readonly Finding[]
 }
 
 interface DetailItem {
@@ -54,6 +56,11 @@ const LINE_SAMPLE_METRES = 2
 const FULL_TURN = 2 * Math.PI
 const CONFLICT = 1000
 const AMBIGUOUS = 500
+// Covering a circle is worse than touching a line, so a crowded number gives way to the line.
+const COVERS_STOP = 10 * CONFLICT
+// Above any map detail a number may cover, so a farther ring is used only when the nearer is
+// ruled out.
+const FARTHER_RING = 100
 // A number must be clearly nearer its own circle than any other, by this share of the radius.
 const OWN_CIRCLE_MARGIN_SHARE = 0.5
 
@@ -149,7 +156,80 @@ export function layOutOverprint(
   })
   const circleCuts = course.controls.map(control => cutCircle(control.position, detail))
   const numberCentres = placeNumbers(stops, legPieces, course, detail)
-  return { numberCentres, circleCuts, legPieces }
+  return {
+    numberCentres,
+    circleCuts,
+    legPieces,
+    findings: numbersOverStops(stops, numberCentres),
+  }
+}
+
+export function withNumberAt(course: Course, controlNumber: number, at: LocalPoint): Course {
+  const centre = course.controls[controlNumber - 1]?.position
+  if (!centre) return course
+  const offsets = course.controls.map((_, i) => course.numberOffsets?.[i] ?? null)
+  offsets[controlNumber - 1] = [at[0] - centre[0], at[1] - centre[1]]
+  return { ...course, numberOffsets: offsets }
+}
+
+// The engine sets an edited course afresh; this keeps the numbers placed by hand with their
+// controls, found by site so that renumbering does not lose them. A moved control keeps its
+// number beside it.
+export function numberOffsetsCarried(
+  before: Course,
+  after: Course,
+  movedControlNumber: number | null = null,
+): Course {
+  const offsets = before.numberOffsets
+  if (!offsets?.some(offset => offset)) return after
+  const key = ({ id, position }: Course['controls'][number]) =>
+    `${id}@${position[0]},${position[1]}`
+  const byKey = new Map(
+    before.controls.flatMap((site, i) => (offsets[i] ? [[key(site), offsets[i]!] as const] : [])),
+  )
+  const isSameCount = before.controls.length === after.controls.length
+  const carried = after.controls.map((site, i) =>
+    isSameCount && i === (movedControlNumber ?? 0) - 1
+      ? (offsets[i] ?? null)
+      : (byKey.get(key(site)) ?? null),
+  )
+  return carried.some(offset => offset) ? { ...after, numberOffsets: carried } : after
+}
+
+const fontSize = mm(COURSE_OVERPRINT.controlNumberHeightMillimetres)
+const inkHalfHeight = (OVERPRINT_LAYOUT.numberInkHeightShareOfFontSize * fontSize) / 2
+
+const numberHalfWidth = (controlNumber: number) =>
+  (String(controlNumber).length * OVERPRINT_LAYOUT.numberWidthShareOfHeightPerDigit * fontSize) / 2
+
+function numberExtent(controlNumber: number, centre: LocalPoint): LocalExtent {
+  const halfWidth = numberHalfWidth(controlNumber)
+  return localExtent(
+    centre[0] - halfWidth,
+    centre[1] - inkHalfHeight,
+    centre[0] + halfWidth,
+    centre[1] + inkHalfHeight,
+  )
+}
+
+const stopRadiiOf = (stops: readonly LocalPoint[]) =>
+  stops.map((_, i) =>
+    i === 0 ? startRadius : i === stops.length - 1 ? finishRadius : controlRadius,
+  )
+
+function numbersOverStops(
+  stops: readonly LocalPoint[],
+  numberCentres: readonly LocalPoint[],
+): Finding[] {
+  const radii = stopRadiiOf(stops)
+  return numberCentres.flatMap((centre, i) => {
+    const extent = numberExtent(i + 1, centre)
+    return stops.flatMap((stop, s) =>
+      distanceToBox(stop, extent) < radii[s]! + lineHalfWidth
+        ? [{ kind: 'numberOverCircle' as const, stops: [i + 1, s] }]
+        : [],
+    )
+  })
 }
 
 function trimmedLeg(from: LocalPoint, to: LocalPoint, trimStart: number, trimEnd: number) {
@@ -332,38 +412,37 @@ function placeNumbers(
   detail: OverprintDetailIndex,
 ): LocalPoint[] {
   const controls = stops.slice(1, -1)
-  const fontSize = mm(COURSE_OVERPRINT.controlNumberHeightMillimetres)
-  const inkHalfHeight = (OVERPRINT_LAYOUT.numberInkHeightShareOfFontSize * fontSize) / 2
   const numberGap = mm(OVERPRINT_LAYOUT.numberGapMillimetres)
+  const ringStep = mm(OVERPRINT_LAYOUT.numberRingStepMillimetres)
   const pieces = legPieces.flat()
-  const stopRadii = [startRadius, ...controls.map(() => controlRadius), finishRadius]
+  const stopRadii = stopRadiiOf(stops)
   const area = course.printArea
   const reserved = area ? reservedBoxesOf(area) : []
+  const boxAt = (control: number, centre: LocalPoint): NumberBox => ({
+    centre,
+    extent: numberExtent(control + 1, centre),
+  })
 
-  const candidatesOf = (control: number): NumberBox[] => {
+  const candidatesOf = (control: number): { box: NumberBox; ring: number }[] => {
     const centre = controls[control]!
-    const digits = String(control + 1).length
-    const halfWidth = (digits * OVERPRINT_LAYOUT.numberWidthShareOfHeightPerDigit * fontSize) / 2
-    return Array.from({ length: OVERPRINT_LAYOUT.numberPositions }, (_, j) => {
-      const angle = (FULL_TURN * j) / OVERPRINT_LAYOUT.numberPositions
-      const [dx, dy] = [Math.cos(angle), Math.sin(angle)]
-      const reach =
-        controlRadius +
-        lineHalfWidth +
-        numberGap +
-        halfWidth * Math.abs(dx) +
-        inkHalfHeight * Math.abs(dy)
-      const at = localPoint(centre[0] + dx * reach, centre[1] + dy * reach)
-      return {
-        centre: at,
-        extent: localExtent(
-          at[0] - halfWidth,
-          at[1] - inkHalfHeight,
-          at[0] + halfWidth,
-          at[1] + inkHalfHeight,
-        ),
-      }
-    })
+    const halfWidth = numberHalfWidth(control + 1)
+    return Array.from({ length: OVERPRINT_LAYOUT.numberRings }, (_, ring) =>
+      Array.from({ length: OVERPRINT_LAYOUT.numberPositions }, (_, j) => {
+        const angle = (FULL_TURN * j) / OVERPRINT_LAYOUT.numberPositions
+        const [dx, dy] = [Math.cos(angle), Math.sin(angle)]
+        const reach =
+          controlRadius +
+          lineHalfWidth +
+          numberGap +
+          ring * ringStep +
+          halfWidth * Math.abs(dx) +
+          inkHalfHeight * Math.abs(dy)
+        return {
+          box: boxAt(control, localPoint(centre[0] + dx * reach, centre[1] + dy * reach)),
+          ring,
+        }
+      }),
+    ).flat()
   }
 
   const fixedCost = (control: number, box: NumberBox): number => {
@@ -372,7 +451,7 @@ function placeNumbers(
     if (pieces.some(([a, b]) => segmentNearBox(a, b, box.extent, lineHalfWidth))) cost += CONFLICT
     stops.forEach((stop, i) => {
       if (i === control + 1) return
-      if (distanceToBox(stop, box.extent) < stopRadii[i]! + lineHalfWidth) cost += CONFLICT
+      if (distanceToBox(stop, box.extent) < stopRadii[i]! + lineHalfWidth) cost += COVERS_STOP
     })
     if (area && !insideExtent(box.extent, area.extent)) cost += CONFLICT
     if (reserved.some(extent => boxesOverlap(box.extent, extent))) cost += CONFLICT
@@ -409,9 +488,16 @@ function placeNumbers(
   }
 
   const options = controls.map((_, control) =>
-    candidatesOf(control).map(box => ({ box, cost: fixedCost(control, box) })),
+    candidatesOf(control).map(({ box, ring }) => ({
+      box,
+      cost: fixedCost(control, box) + ring * FARTHER_RING,
+    })),
   )
-  const placed: (NumberBox | null)[] = controls.map(() => null)
+  const handPlaced = controls.map((centre, control) => {
+    const offset = course.numberOffsets?.[control]
+    return offset ? boxAt(control, localPoint(centre[0] + offset[0], centre[1] + offset[1])) : null
+  })
+  const placed: (NumberBox | null)[] = [...handPlaced]
   const costWithOthers = (control: number, option: { box: NumberBox; cost: number }) =>
     option.cost +
     placed.reduce(
@@ -427,6 +513,7 @@ function placeNumbers(
 
   const mostConstrainedFirst = controls
     .map((_, control) => control)
+    .filter(control => !handPlaced[control])
     .sort(
       (a, b) =>
         options[a]!.filter(o => o.cost < CONFLICT).length -

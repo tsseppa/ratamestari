@@ -22,4 +22,16 @@ describe('describeFinding', () => {
       'our check',
     )
   })
+
+  it('leaves a number over a circle to be moved rather than fixed', () => {
+    expect(describeFinding({ kind: 'numberOverCircle', stops: [3, 4] }, 10)).toEqual({
+      severity: 'error',
+      text: 'The number of control 3 covers the circle of control 4',
+      basis: 'ISOM 2017-2 sym. 704',
+      fixableControl: null,
+    })
+    expect(describeFinding({ kind: 'numberOverCircle', stops: [3, 3] }, 10).text).toBe(
+      'The number of control 3 covers its own circle',
+    )
+  })
 })

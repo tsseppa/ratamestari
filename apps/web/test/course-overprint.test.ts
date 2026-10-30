@@ -74,6 +74,7 @@ describe('drawing the overprint layout', () => {
   const plain = layOutOverprint(course)
   const layout: OverprintLayout = {
     numberCentres: [localPoint(1000, -80)],
+    findings: [],
     circleCuts: [[{ from: 1, to: 1.5 }]],
     legPieces: [
       [
