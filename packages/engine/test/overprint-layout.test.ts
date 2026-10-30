@@ -76,6 +76,28 @@ describe('overprint layout', () => {
     expect(Math.abs(moved[1] - free[1])).toBeGreaterThan(fontSize / 2)
   })
 
+  it('leaves out the part of each circle that lies inside an overlapping circle', () => {
+    const next = localPoint(radius, 0)
+    const course = courseThrough(localPoint(0, -600), control, next, localPoint(600, 600))
+    const [first, second] = layOutOverprint(course).circleCuts
+    const half = Math.acos(1 / 2)
+    expect(first).toHaveLength(1)
+    expect(first![0]!.to - first![0]!.from).toBeCloseTo(2 * half)
+    expect(first![0]!.from).toBeCloseTo(2 * Math.PI - half)
+    expect(second).toHaveLength(1)
+    expect(second![0]!.from).toBeCloseTo(Math.PI - half)
+  })
+
+  it('draws both circles whole when they only come close', () => {
+    const course = courseThrough(
+      localPoint(0, -600),
+      control,
+      localPoint(2 * radius + 1, 0),
+      localPoint(600, 600),
+    )
+    expect(layOutOverprint(course).circleCuts).toEqual([[], []])
+  })
+
   it('cuts a circle where it passes over a boulder', () => {
     const detail = overprintDetailOf([point('204', localPoint(radius, 0))])
     const course = courseThrough(localPoint(0, -600), control, localPoint(0, 600))

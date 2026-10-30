@@ -154,7 +154,12 @@ export function layOutOverprint(
     const leg = trimmedLeg(from, to, radii[i]! + lineGap, radii[i + 1]! + lineGap)
     return leg ? cutLeg(leg, detail) : []
   })
-  const circleCuts = course.controls.map(control => cutCircle(control.position, detail))
+  const circleCuts = course.controls.map((control, i) =>
+    mergeArcs([
+      ...cutCircle(control.position, detail),
+      ...insideOtherCircles(control.position, course.controls, i),
+    ]),
+  )
   const numberCentres = placeNumbers(stops, legPieces, course, detail)
   return {
     numberCentres,
@@ -359,6 +364,17 @@ function cutCircle(centre: LocalPoint, detail: OverprintDetailIndex): Arc[] {
       cuts = tried
   }
   return cuts
+}
+
+// Not counted against the limits for map detail, so an overlapping pair always reads as one outline.
+function insideOtherCircles(centre: LocalPoint, controls: Course['controls'], own: number): Arc[] {
+  return controls.flatMap(({ position }, i) => {
+    const d = distanceBetween(centre, position)
+    if (i === own || d === 0 || d >= 2 * controlRadius) return []
+    const half = Math.acos(d / (2 * controlRadius))
+    const direction = Math.atan2(position[1] - centre[1], position[0] - centre[0])
+    return [{ from: direction - half, to: direction + half }]
+  })
 }
 
 const arcLength = (arc: Arc) => arc.to - arc.from
