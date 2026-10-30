@@ -21,7 +21,11 @@ Ideas mentioned while working, before they become a plan. One line each: date, i
 
 - 2026-10-29 · Control picking: many short legs that turn at most controls, sized by the winning time (D26) · done (f31bc9a)
 - 2026-10-29 · Long legs: the long, short, long pattern with 75% of the time on long legs; until then the style keeps the long-distance shape (D26) · planned
-- 2026-10-29 · The control descriptions in trainings should be possible to scale to be smaller in order to fit course with many controls to A4 · idea
+- 2026-10-29 · The control descriptions in trainings should be possible to scale to be smaller in order to fit course with many controls to A4; also split into parts side by side (D27) · done (955c73a)
+
+## Course overprint
+
+- 2026-10-30 · No control number on any control circle (its own or another), as a rule check; drag a number on its own, leaving the control where it is · done (da39762)
 
 ## Map reading
 
