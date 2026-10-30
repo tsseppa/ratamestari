@@ -42,8 +42,11 @@ export default defineConfig({
   plugins: [react(), umami()],
   define: { __APP_VERSION__: JSON.stringify(version) },
   // Vite would otherwise listen only on IPv6 localhost in the dev container, where the forwarded
-  // port never answers.
-  server: { host: '127.0.0.1' },
+  // port never answers. File change events don't reach the container either, so it polls there.
+  server: {
+    host: '127.0.0.1',
+    ...(process.env.DEVCONTAINER === 'true' && { watch: { usePolling: true } }),
+  },
   worker: { format: 'es' },
   build: {
     rolldownOptions: {
