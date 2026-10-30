@@ -60,4 +60,21 @@ describe('renderDescriptionSheet', () => {
     const rendered = renderDescriptionSheet({ ...sheet, controls: [] }, { boxMillimetres: 6 })
     expect(rendered.heightMillimetres).toBe((2 + 1 + 1) * 6)
   })
+
+  it('runs the rows on into a second part beside the first', () => {
+    const rendered = renderDescriptionSheet(sheet, { boxMillimetres: 5, parts: 2 })
+    expect(rendered.widthMillimetres).toBe(2 * 8 * 5)
+    expect(rendered.heightMillimetres).toBe(4 * 5)
+    const controlTwo = /<text x="([\d.]+)" y="([\d.]+)"[^>]*font-weight="bold">2<\/text>/
+    const [, x = '0', y = '0'] = rendered.svg.match(controlTwo) ?? []
+    expect(Number(x)).toBe(40 + 2.5)
+    expect(Number(y)).toBe(2.5)
+  })
+
+  it('uses only the parts it needs when more are allowed than rows to fill them', () => {
+    const one = { ...sheet, controls: sheet.controls.slice(0, 1) }
+    const rendered = renderDescriptionSheet(one, { boxMillimetres: 6, parts: 4 })
+    expect(rendered.widthMillimetres).toBe(3 * 8 * 6)
+    expect(rendered.heightMillimetres).toBe(2 * 6)
+  })
 })

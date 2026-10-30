@@ -249,7 +249,7 @@ function descriptionBox(
   area: PrintArea,
   toPage: (point: LocalPoint) => [number, number],
 ): string {
-  const rendered = renderDescriptionSheet(sheet)
+  const rendered = renderDescriptionSheet(sheet, { ...area.descriptionLayout })
   const metresPerMillimetre = area.scale / MILLIMETRES_PER_METRE
   const [left, , , top] = placeDescriptionBox(
     area,

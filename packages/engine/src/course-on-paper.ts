@@ -1,5 +1,5 @@
 import type { LocalPoint } from '@ratamestari/core'
-import { DESCRIPTION_BOX, PAPER, type PaperSize } from '@ratamestari/rules'
+import { DESCRIPTION_BOX, PAPER, type PaperSize, type TrainingRules } from '@ratamestari/rules'
 import type { ControlSiteCandidate } from './control-sites'
 import { hasLocks } from './locks'
 import {
@@ -64,7 +64,10 @@ export function* setCourseOnPaperSteps(
   // Kept controls were on this paper; a newly planned print area might leave them off it.
   if (hasLocks(spec.locks) && spec.printArea) {
     const course = yield* searchCourseSteps(terrain, sites, spec)
-    return course && fitCourseToPaper(terrain, course, papers, spec.printScale, spec.peripheralSize)
+    return (
+      course &&
+      fitCourseToPaper(terrain, course, papers, spec.printScale, spec.peripheralSize, spec.training)
+    )
   }
   const state = { stopped: false }
   const attempt = function* (size: PaperSize, showsProgress: boolean): Search {
@@ -102,7 +105,14 @@ export function* setCourseOnPaperSteps(
   }
   if (!course) return null
 
-  return fitCourseToPaper(terrain, course, papers, spec.printScale, spec.peripheralSize)
+  return fitCourseToPaper(
+    terrain,
+    course,
+    papers,
+    spec.printScale,
+    spec.peripheralSize,
+    spec.training,
+  )
 }
 
 function* setCourseInFrameSteps(
@@ -115,6 +125,7 @@ function* setCourseInFrameSteps(
     competitionCentre: spec.competitionCentre,
     descriptionRows: expectedControlCount(spec) + DESCRIPTION_BOX.rowsBesidesControls,
     peripheralSize: spec.peripheralSize ?? null,
+    training: spec.training ?? null,
   })
   if (!printArea) return null
   const course = yield* searchCourseSteps(terrain, sites, {
@@ -122,7 +133,7 @@ function* setCourseInFrameSteps(
     printScale: frame.scale,
     printArea,
   })
-  return course && fitCourseToFrame(terrain, course, frame, spec.peripheralSize)
+  return course && fitCourseToFrame(terrain, course, frame, spec.peripheralSize, spec.training)
 }
 
 const stopsOf = (course: Course) => [
@@ -137,11 +148,13 @@ export function fitCourseToFrame(
   course: Course,
   frame: PrintFrame,
   peripheralSize: PaperBoxSize | null = null,
+  training: TrainingRules | null = null,
 ): Course {
   const stops = stopsOf(course)
   const printArea = fitBoxesToCourse(terrain, stops, frame, {
     descriptionRows: course.controls.length + DESCRIPTION_BOX.rowsBesidesControls,
     peripheralSize,
+    training,
   })
   if (!printArea) return course
   return withPrintAreaChecked(course, stops, printArea)
@@ -187,6 +200,7 @@ export function fitCourseToPaper(
   papers: readonly PaperSize[],
   printScale: number,
   peripheralSize: PaperBoxSize | null = null,
+  training: TrainingRules | null = null,
 ): Course {
   const stops = stopsOf(course)
   const fitted = fitPrintAreaToCourse(terrain, stops, {
@@ -194,6 +208,7 @@ export function fitCourseToPaper(
     printScale,
     descriptionRows: course.controls.length + DESCRIPTION_BOX.rowsBesidesControls,
     peripheralSize,
+    training,
   })
   if (!fitted) return course
   return withPrintAreaChecked(course, stops, fitted)

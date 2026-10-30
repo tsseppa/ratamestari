@@ -34,19 +34,29 @@ const round = (value: number) => Math.round(value * 1000) / 1000
 
 export interface RenderOptions {
   readonly boxMillimetres?: number
+  // Side by side, with the rows running on from the bottom of one part to the top of the next.
+  readonly parts?: number
   readonly pixelsPerMillimetre?: number
 }
 
 export function renderDescriptionSheet(
   sheet: DescriptionSheet,
-  { boxMillimetres = DEFAULT_BOX_MILLIMETRES, pixelsPerMillimetre }: RenderOptions = {},
+  { boxMillimetres = DEFAULT_BOX_MILLIMETRES, parts = 1, pixelsPerMillimetre }: RenderOptions = {},
 ): RenderedSheet {
   const box = boxMillimetres
-  const width = COLUMNS * box
+  const partWidth = COLUMNS * box
   const descriptionRows = 1 + sheet.controls.length
   const finishRow = HEADING_ROWS + descriptionRows
-  const height = (finishRow + 1) * box
-  const parts: string[] = []
+  const rows = finishRow + 1
+  const rowsPerPart = Math.ceil(rows / parts)
+  const usedParts = Math.ceil(rows / rowsPerPart)
+  const width = usedParts * partWidth
+  const height = rowsPerPart * box
+  const elements: string[] = []
+
+  const partOf = (row: number) => Math.floor(row / rowsPerPart)
+  const xIn = (row: number, x: number) => partOf(row) * partWidth + x
+  const yOf = (row: number) => (row % rowsPerPart) * box
 
   const text = (
     content: string,
@@ -54,19 +64,25 @@ export function renderDescriptionSheet(
     row: number,
     { size = 0.55, bold = false }: { size?: number; bold?: boolean } = {},
   ) =>
-    parts.push(
-      `<text x="${round(centreX)}" y="${round((row + 0.5) * box)}" font-size="${round(size * box)}"` +
+    elements.push(
+      `<text x="${round(xIn(row, centreX))}" y="${round(yOf(row) + 0.5 * box)}" font-size="${round(size * box)}"` +
         ` text-anchor="middle" dominant-baseline="central" stroke="none"${bold ? ' font-weight="bold"' : ''}>` +
         `${escapeXml(content)}</text>`,
     )
-  const hLine = (row: number, thickness: number) =>
-    parts.push(
-      `<line x1="0" y1="${round(row * box)}" x2="${round(width)}" y2="${round(row * box)}" stroke-width="${thickness}"/>`,
+  // The line above `row`; a part's own outline is drawn above its first row.
+  const hLine = (row: number, thickness: number) => {
+    if (row % rowsPerPart === 0) return
+    elements.push(
+      `<line x1="${round(xIn(row, 0))}" y1="${round(yOf(row))}" x2="${round(xIn(row, partWidth))}" y2="${round(yOf(row))}" stroke-width="${thickness}"/>`,
     )
-  const vLine = (column: number, fromRow: number, toRow: number) =>
-    parts.push(
-      `<line x1="${round(column * box)}" y1="${round(fromRow * box)}" x2="${round(column * box)}" y2="${round(toRow * box)}" stroke-width="${THIN_LINE}"/>`,
-    )
+  }
+  const vLine = (column: number, fromRow: number, toRow: number) => {
+    for (let row = fromRow; row < toRow; row++) {
+      elements.push(
+        `<line x1="${round(xIn(row, column * box))}" y1="${round(yOf(row))}" x2="${round(xIn(row, column * box))}" y2="${round(yOf(row) + box)}" stroke-width="${THIN_LINE}"/>`,
+      )
+    }
+  }
   const pictogram = (
     markup: string,
     column: number,
@@ -78,8 +94,8 @@ export function renderDescriptionSheet(
     const rotation = direction
       ? ` transform="rotate(${compassClockwiseDegrees(direction)} 50 50)"`
       : ''
-    parts.push(
-      `<g transform="translate(${round(column * box + inset)} ${round(row * box + inset)}) scale(${round(scale)})"` +
+    elements.push(
+      `<g transform="translate(${round(xIn(row, column * box + inset))} ${round(yOf(row) + inset)}) scale(${round(scale)})"` +
         ` stroke-width="${PICTOGRAM_STROKE}"><g${rotation}>${markup}</g></g>`,
     )
   }
@@ -102,7 +118,7 @@ export function renderDescriptionSheet(
     }
   }
 
-  text(sheet.title, width / 2, 0, { bold: true })
+  text(sheet.title, partWidth / 2, 0, { bold: true })
   text(sheet.courseName, 1.5 * box, 1, { bold: true })
   text(
     sheet.lengthKilometers === null ? '– km' : `${sheet.lengthKilometers.toFixed(1)} km`,
@@ -122,7 +138,11 @@ export function renderDescriptionSheet(
     describe(control.description, row)
   })
 
-  parts.push(finishSymbol(sheet.finish, finishRow, box, width))
+  elements.push(
+    `<g transform="translate(${round(xIn(finishRow, 0))} ${round(yOf(finishRow) - finishRow * box)})">` +
+      finishSymbol(sheet.finish, finishRow, box, partWidth) +
+      `</g>`,
+  )
 
   for (let row = 1; row <= finishRow; row++) {
     const controlRowsAbove = row - startRow - 1
@@ -136,6 +156,10 @@ export function renderDescriptionSheet(
   vLine(6, 1, HEADING_ROWS)
   for (let column = 1; column < COLUMNS; column++) vLine(column, HEADING_ROWS, finishRow)
 
+  const partRect = (part: number, paint: string) =>
+    `<rect x="${round(part * partWidth)}" y="0" width="${round(partWidth)}"` +
+    ` height="${round(Math.min(rowsPerPart, rows - part * rowsPerPart) * box)}" ${paint}/>`
+  const partIndices = Array.from({ length: usedParts }, (_, part) => part)
   const size = pixelsPerMillimetre
     ? `width="${round(width * pixelsPerMillimetre)}" height="${round(height * pixelsPerMillimetre)}"`
     : `width="${round(width)}mm" height="${round(height)}mm"`
@@ -143,8 +167,9 @@ export function renderDescriptionSheet(
     `<svg xmlns="http://www.w3.org/2000/svg" ${size}` +
     ` viewBox="0 0 ${round(width)} ${round(height)}" color="black" fill="black" stroke="currentColor"` +
     ` stroke-linecap="round" stroke-linejoin="round" font-family="Arial, Helvetica, sans-serif">` +
-    `<rect x="0" y="0" width="${round(width)}" height="${round(height)}" fill="white" stroke-width="${THICK_LINE}"/>` +
-    parts.join('') +
+    partIndices.map(part => partRect(part, 'fill="white" stroke="none"')).join('') +
+    elements.join('') +
+    partIndices.map(part => partRect(part, `fill="none" stroke-width="${THICK_LINE}"`)).join('') +
     `</svg>`
   return { svg, widthMillimetres: width, heightMillimetres: height }
 }

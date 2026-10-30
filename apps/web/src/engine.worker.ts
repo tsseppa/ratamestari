@@ -158,9 +158,17 @@ function fittedAsSet(
   terrain: Terrain,
   { spec, paper }: NonNullable<typeof lastSetting>,
 ) {
+  const training = spec.training ?? null
   return spec.printFrame
-    ? fitCourseToFrame(terrain, course, spec.printFrame, spec.peripheralSize)
-    : fitCourseToPaper(terrain, course, papersFor(paper), spec.printScale, spec.peripheralSize)
+    ? fitCourseToFrame(terrain, course, spec.printFrame, spec.peripheralSize, training)
+    : fitCourseToPaper(
+        terrain,
+        course,
+        papersFor(paper),
+        spec.printScale,
+        spec.peripheralSize,
+        training,
+      )
 }
 
 function editedCourse(
@@ -358,6 +366,7 @@ const engine = {
         papersFor(paper),
         spec.printScale,
         spec.peripheralSize,
+        spec.training ?? null,
       ),
       controlCodes: stops.controlCodes,
       fileLengthMeters: course.lengthMeters,
@@ -377,7 +386,14 @@ const engine = {
       printScale: printScaleFor(printScaleChoice, lastSetting.spec.format),
     }
     lastSetting = { spec, paper }
-    return fitCourseToPaper(terrain, course, papersFor(paper), spec.printScale)
+    return fitCourseToPaper(
+      terrain,
+      course,
+      papersFor(paper),
+      spec.printScale,
+      null,
+      spec.training ?? null,
+    )
   },
 
   // The course stays as it is; controls the new frame leaves outside become findings.

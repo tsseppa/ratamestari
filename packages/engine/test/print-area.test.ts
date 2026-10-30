@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { localExtent, localPoint } from '@ratamestari/core'
+import { TRAINING_DEFAULTS } from '@ratamestari/rules'
 import type { ControlSiteCandidate } from '../src/control-sites'
 import {
+  descriptionBoxGroundSize,
   fitBoxesToCourse,
   fitPrintAreaToCourse,
   hasRoomForCentre,
@@ -206,5 +208,49 @@ describe('fitBoxesToCourse', () => {
     const frame = printFrameAround(localPoint(200, 380), 'A4', 'portrait', 2000)
     const area = fitBoxesToCourse(terrain, stops, frame, { descriptionRows: 6 })!
     expect(stopsOutsideFrame(stops, area)).toEqual([1])
+  })
+})
+
+describe('description layouts for training', () => {
+  const training = TRAINING_DEFAULTS.contour.controlPicking
+  const manyControls = 30 + 4
+  const frame = printFrameAround(centre, 'A4', 'portrait', SMALL_SCALE_FOR_A_SMALL_MAP)
+
+  it('splits the rows into parts side by side', () => {
+    const whole = descriptionBoxGroundSize(manyControls, 2000)
+    const split = descriptionBoxGroundSize(manyControls, 2000, { boxMillimetres: 6, parts: 2 })
+    expect(split.width).toBeCloseTo(2 * whole.width)
+    expect(split.height).toBeCloseTo(whole.height / 2)
+  })
+
+  it('keeps one part in standard boxes for a competition', () => {
+    const area = fitBoxesToCourse(terrain, [centre], frame, { descriptionRows: manyControls })!
+    expect(area.descriptionLayout).toEqual({ boxMillimetres: 6, parts: 1 })
+  })
+
+  it('splits a long training description before making its boxes smaller', () => {
+    const area = fitBoxesToCourse(terrain, [centre], frame, {
+      descriptionRows: manyControls,
+      training,
+    })!
+    expect(area.descriptionLayout).toEqual({ boxMillimetres: 6, parts: 2 })
+  })
+
+  it('makes the boxes smaller when the split box would cover the course', () => {
+    const nearEveryCorner = [localPoint(500, 600), localPoint(500, 400)]
+    const area = fitBoxesToCourse(terrain, nearEveryCorner, frame, {
+      descriptionRows: manyControls,
+      training,
+    })!
+    expect(area.descriptionLayout).toEqual({ boxMillimetres: 5, parts: 2 })
+  })
+
+  it('fits a long training description in a split layout and keeps the standard one otherwise', () => {
+    const stops = [localPoint(300, 300), localPoint(500, 450), localPoint(420, 250)]
+    const request = { papers: ['A4'] as const, printScale: 2000, descriptionRows: manyControls }
+    const competition = fitPrintAreaToCourse(terrain, stops, request)!
+    expect(competition.descriptionLayout).toEqual({ boxMillimetres: 6, parts: 1 })
+    const trained = fitPrintAreaToCourse(terrain, stops, { ...request, training })!
+    expect(trained.descriptionLayout!.parts).toBeGreaterThan(1)
   })
 })

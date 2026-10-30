@@ -2,7 +2,11 @@ import { localExtent, localPoint, type LocalExtent, type LocalPoint } from '@rat
 import {
   CONTROL_CIRCLE,
   DESCRIPTION_BOX,
+  descriptionLayoutsFor,
   PAPER,
+  STANDARD_DESCRIPTION_LAYOUT,
+  TRAINING_DESCRIPTION_BOX,
+  type DescriptionLayout,
   type PaperSize,
   type TrainingRules,
 } from '@ratamestari/rules'
@@ -20,6 +24,8 @@ export interface PrintArea {
   readonly orientation: Orientation
   readonly extent: LocalExtent
   readonly descriptionBox: LocalExtent
+  // Absent means the standard layout: one part in boxes of the standard size.
+  readonly descriptionLayout?: DescriptionLayout
   readonly peripheralBox: LocalExtent | null
 }
 
@@ -57,11 +63,48 @@ const FINISH_CLEARANCE_METERS = CONTROL_CIRCLE.footprintMeters
 
 const paperToGround = (millimetres: number, scale: number) => (millimetres * scale) / 1000
 
-export function descriptionBoxGroundSize(rows: number, printScale: number) {
+export function descriptionBoxGroundSize(
+  rows: number,
+  printScale: number,
+  { boxMillimetres, parts }: DescriptionLayout = STANDARD_DESCRIPTION_LAYOUT,
+) {
+  const rowsPerPart = Math.ceil(rows / parts)
+  const usedParts = Math.ceil(rows / rowsPerPart)
   return {
-    width: paperToGround(DESCRIPTION_BOX.columns * DESCRIPTION_BOX.boxMillimetres, printScale),
-    height: paperToGround(rows * DESCRIPTION_BOX.boxMillimetres, printScale),
+    width: paperToGround(DESCRIPTION_BOX.columns * boxMillimetres * usedParts, printScale),
+    height: paperToGround(rowsPerPart * boxMillimetres, printScale),
   }
+}
+
+interface DescriptionChoice {
+  readonly layout: DescriptionLayout
+  readonly width: number
+  readonly height: number
+}
+
+// The description layouts for paper of this size, in order of preference. A competition has only
+// the standard one; a training drops the ones that would take too much of the paper, keeping the
+// most compact when none is small enough.
+function descriptionChoices(
+  rows: number,
+  printScale: number,
+  paperWidth: number,
+  paperHeight: number,
+  training: TrainingRules | null | undefined,
+): DescriptionChoice[] {
+  const choices = descriptionLayoutsFor(Boolean(training)).map(layout => ({
+    layout,
+    ...descriptionBoxGroundSize(rows, printScale, layout),
+  }))
+  if (!training) return choices
+  const limit = TRAINING_DESCRIPTION_BOX.maxShareOfPrintableSide
+  const small = choices.filter(
+    ({ width, height }) => width <= limit * paperWidth && height <= limit * paperHeight,
+  )
+  if (small.length > 0) return small
+  const share = ({ width, height }: DescriptionChoice) =>
+    Math.max(width / paperWidth, height / paperHeight)
+  return [choices.reduce((best, next) => (share(next) < share(best) ? next : best))]
 }
 
 export function printableGroundSize(
@@ -163,6 +206,7 @@ type BoxRequest = Omit<PrintAreaRequest, 'paper'>
 
 interface PlacedBoxes {
   readonly descriptionBox: LocalExtent
+  readonly descriptionLayout: DescriptionLayout
   readonly peripheralBox: LocalExtent | null
   readonly score: number
 }
@@ -170,7 +214,14 @@ interface PlacedBoxes {
 // Scores a paper extent by the control sites it leaves usable, with the boxes in their best corners.
 function boxPlacer(terrain: Terrain, sites: readonly ControlSiteCandidate[], request: BoxRequest) {
   const quality = summedQuality(terrain, sites, request.training)
-  const box = descriptionBoxGroundSize(request.descriptionRows, request.printScale)
+  const boxFor = (width: number, height: number) =>
+    descriptionChoices(
+      request.descriptionRows,
+      request.printScale,
+      width,
+      height,
+      request.training,
+    )[0]!
   const peripheral = request.peripheralSize
     ? peripheralGroundSize(request.peripheralSize, request.printScale)
     : null
@@ -178,10 +229,14 @@ function boxPlacer(terrain: Terrain, sites: readonly ControlSiteCandidate[], req
     !contains(reserved, request.competitionCentre, -FINISH_CLEARANCE_METERS)
   const reservedQuality = (reserved: LocalExtent) =>
     quality.sum(shrunk(reserved, -CIRCLE_RADIUS_METERS))
-  const fits = (width: number, height: number) => box.width <= width && box.height <= height
+  const fits = (width: number, height: number) => {
+    const box = boxFor(width, height)
+    return box.width <= width && box.height <= height
+  }
 
   const place = (extent: LocalExtent): PlacedBoxes | null => {
     const usable = quality.sum(shrunk(extent, CIRCLE_RADIUS_METERS))
+    const box = boxFor(extent[2] - extent[0], extent[3] - extent[1])
     let best: PlacedBoxes | null = null
     for (const descriptionBox of cornerBoxes(extent, box.width, box.height)) {
       if (!clearOfCentre(descriptionBox)) continue
@@ -200,7 +255,8 @@ function boxPlacer(terrain: Terrain, sites: readonly ControlSiteCandidate[], req
           : peripheral
             ? MISSING_PERIPHERAL_PENALTY
             : 0)
-      if (!best || score > best.score) best = { descriptionBox, peripheralBox, score }
+      if (!best || score > best.score)
+        best = { descriptionBox, descriptionLayout: box.layout, peripheralBox, score }
     }
     return best
   }
@@ -234,13 +290,14 @@ export function planPrintArea(
         if (!holds.every(point => contains(extent, point, CIRCLE_RADIUS_METERS))) continue
         const placed = placer.place(extent)
         if (!placed || (best && placed.score <= best.score)) continue
-        const { descriptionBox, peripheralBox, score } = placed
+        const { descriptionBox, descriptionLayout, peripheralBox, score } = placed
         const area: PrintArea = {
           paper: request.paper,
           scale: request.printScale,
           orientation,
           extent,
           descriptionBox,
+          descriptionLayout,
           peripheralBox,
         }
         if (holds.every(point => isUsableInPrintArea(point, area))) best = { area, score }
@@ -267,6 +324,7 @@ export function placeBoxesInFrame(
     placed && {
       ...frame,
       descriptionBox: placed.descriptionBox,
+      descriptionLayout: placed.descriptionLayout,
       peripheralBox: placed.peripheralBox,
     }
   )
@@ -353,6 +411,7 @@ export interface CourseFitRequest {
   readonly printScale: number
   readonly descriptionRows: number
   readonly peripheralSize?: PaperBoxSize | null
+  readonly training?: TrainingRules | null
 }
 
 const FIT_STEP_METERS = 25
@@ -364,7 +423,6 @@ export function fitPrintAreaToCourse(
 ): PrintArea | null {
   if (stops.length === 0) return null
   const mapped = summedMappedArea(terrain)
-  const box = descriptionBoxGroundSize(request.descriptionRows, request.printScale)
   const peripheral = request.peripheralSize
     ? peripheralGroundSize(request.peripheralSize, request.printScale)
     : null
@@ -388,6 +446,13 @@ export function fitPrintAreaToCourse(
     let best: { area: PrintArea; score: number } | null = null
     for (const orientation of ['portrait', 'landscape'] as const) {
       const { width, height } = printableGroundSize(paper, orientation, request.printScale)
+      const choices = descriptionChoices(
+        request.descriptionRows,
+        request.printScale,
+        width,
+        height,
+        request.training,
+      )
       for (let left = needed[2] - width; left <= needed[0]; left += FIT_STEP_METERS) {
         for (let bottom = needed[3] - height; bottom <= needed[1]; bottom += FIT_STEP_METERS) {
           const extent = localExtent(left, bottom, left + width, bottom + height)
@@ -397,10 +462,14 @@ export function fitPrintAreaToCourse(
             Math.hypot(width / 2, height / 2)
           const placementScore = coverageShare - offCentreShare
           if (best && placementScore <= best.score) continue
-          const descriptionBox = cornerBoxes(extent, box.width, box.height)
-            .filter(isClearOfCourse)
-            .sort((a, b) => mapped.sum(a) - mapped.sum(b))[0]
-          if (!descriptionBox) continue
+          const clear = choices.flatMap(choice => {
+            const box = cornerBoxes(extent, choice.width, choice.height)
+              .filter(isClearOfCourse)
+              .sort((a, b) => mapped.sum(a) - mapped.sum(b))[0]
+            return box ? [{ descriptionBox: box, descriptionLayout: choice.layout }] : []
+          })[0]
+          if (!clear) continue
+          const { descriptionBox, descriptionLayout } = clear
           const peripheralBox = placePeripheralBox(
             extent,
             descriptionBox,
@@ -418,6 +487,7 @@ export function fitPrintAreaToCourse(
                 orientation,
                 extent,
                 descriptionBox,
+                descriptionLayout,
                 peripheralBox,
               },
               score,
@@ -450,16 +520,33 @@ export function fitBoxesToCourse(
   request: FrameFitRequest,
 ): PrintArea | null {
   const mapped = summedMappedArea(terrain)
-  const box = descriptionBoxGroundSize(request.descriptionRows, frame.scale)
   const [minX, minY, maxX, maxY] = frame.extent
-  if (box.width > maxX - minX || box.height > maxY - minY) return null
+  const choices = descriptionChoices(
+    request.descriptionRows,
+    frame.scale,
+    maxX - minX,
+    maxY - minY,
+    request.training,
+  ).filter(({ width, height }) => width <= maxX - minX && height <= maxY - minY)
+  if (choices.length === 0) return null
   const cost = (reserved: LocalExtent) => [courseUnder(reserved, stops), mapped.sum(reserved)]
   const byCost = (a: LocalExtent, b: LocalExtent) => {
     const [coverA = 0, mapA = 0] = cost(a)
     const [coverB = 0, mapB = 0] = cost(b)
     return coverA - coverB || mapA - mapB
   }
-  const descriptionBox = cornerBoxes(frame.extent, box.width, box.height).sort(byCost)[0]!
+  // The first layout that leaves the course clear, or else the one covering least of it.
+  const placedChoices = choices.map(choice => ({
+    descriptionLayout: choice.layout,
+    descriptionBox: cornerBoxes(frame.extent, choice.width, choice.height).sort(byCost)[0]!,
+  }))
+  const { descriptionBox, descriptionLayout } =
+    placedChoices.find(({ descriptionBox }) => courseUnder(descriptionBox, stops) === 0) ??
+    placedChoices.reduce((best, next) =>
+      courseUnder(next.descriptionBox, stops) < courseUnder(best.descriptionBox, stops)
+        ? next
+        : best,
+    )
   const peripheral = request.peripheralSize
     ? peripheralGroundSize(request.peripheralSize, frame.scale)
     : null
@@ -468,7 +555,7 @@ export function fitBoxesToCourse(
         .filter(reserved => !overlaps(reserved, descriptionBox))
         .sort(byCost)[0] ?? null)
     : null
-  return { ...frame, descriptionBox, peripheralBox }
+  return { ...frame, descriptionBox, descriptionLayout, peripheralBox }
 }
 
 export function placeDescriptionBox(area: PrintArea, width: number, height: number): LocalExtent {

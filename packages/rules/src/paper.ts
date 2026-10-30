@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { citedSchema, iofDescriptions, isom, lajisaannot, ratamestarikirja } from './source'
+import {
+  citedSchema,
+  iofDescriptions,
+  isom,
+  lajisaannot,
+  ratamestariDefaults,
+  ratamestarikirja,
+} from './source'
 import { formatSchema, type Format } from './winning-time'
 
 export const paperSizeSchema = z.enum(['A4', 'A3'])
@@ -32,6 +39,48 @@ export const DESCRIPTION_BOX: z.infer<typeof descriptionBoxRuleSchema> = {
   sources: [iofDescriptions('p. 3')],
   interpretation: false,
 }
+
+// How the description box is printed on the map: its box size, and how many parts it is split
+// into, side by side, with the rows running on from one part to the next.
+export const descriptionLayoutSchema = z.object({
+  boxMillimetres: z.number().positive(),
+  parts: z.int().positive(),
+})
+
+export type DescriptionLayout = z.infer<typeof descriptionLayoutSchema>
+
+export const STANDARD_DESCRIPTION_LAYOUT: DescriptionLayout = {
+  boxMillimetres: DESCRIPTION_BOX.boxMillimetres,
+  parts: 1,
+}
+
+export const trainingDescriptionBoxRuleSchema = citedSchema.extend({
+  // Largest first; a smaller box is tried only when no split of the larger one fits.
+  boxMillimetres: z.array(z.number().positive()).min(1),
+  maxParts: z.int().positive(),
+  // Of the printable width and height, so the box leaves most of the paper to the map.
+  maxShareOfPrintableSide: z.number().gt(0).max(1),
+})
+
+export const TRAINING_DESCRIPTION_BOX: z.infer<typeof trainingDescriptionBoxRuleSchema> = {
+  boxMillimetres: [6, 5, 4],
+  maxParts: 3,
+  maxShareOfPrintableSide: 0.5,
+  sources: [ratamestariDefaults('D27'), iofDescriptions('p. 3')],
+  interpretation: true,
+}
+
+// The layouts to try, in order of preference: splitting before shrinking, since a split keeps
+// the pictograms at full size.
+export const descriptionLayoutsFor = (isTraining: boolean): readonly DescriptionLayout[] =>
+  isTraining
+    ? TRAINING_DESCRIPTION_BOX.boxMillimetres.flatMap(boxMillimetres =>
+        Array.from({ length: TRAINING_DESCRIPTION_BOX.maxParts }, (_, i) => ({
+          boxMillimetres,
+          parts: i + 1,
+        })),
+      )
+    : [STANDARD_DESCRIPTION_LAYOUT]
 
 export const peripheralInformationRuleSchema = citedSchema.extend({
   groupingGapMillimetres: z.number().positive(),

@@ -842,3 +842,37 @@ The values are Ratamestari defaults (D25): cited as `Ratamestari defaults`, flag
 - In the workspace, training asks for the map (contour map or full map), the style and the winning time.
 - The assistant can choose the style from words such as "rastinotto" or "long legs".
 - More styles can be added later as further profiles, for example corridor or line orienteering.
+
+## D27: Smaller and split description boxes on training maps
+
+**Date:** 2026-10-30
+**Status:** Proposed
+
+### Decision
+
+On a **training** map, the description box may be printed smaller or split into parts side by side, so a course with many controls still fits and leaves room for the map. Competition maps keep one part in 6 mm boxes.
+
+The engine tries these layouts in order and takes the first that works:
+
+1. 6 mm boxes in 1, 2 or 3 parts, then 5 mm, then 4 mm, in the same way. Splitting comes before shrinking, since a split keeps the pictograms at full size.
+2. A layout is left out if the box would take more than half of the printable width or height. When every layout is too large, the most compact one is used.
+3. Once the course is set, a layout whose box would cover controls or course lines is skipped for the next one.
+
+The rows run on from the bottom of one part to the top of the next: the heading and the start are in the first part, the finish row in the last.
+
+### Why
+
+- A control-picking training has many controls (often 30 or more). In one column of 6 mm boxes its description box is over 20 cm tall and takes a large strip of an A4 map.
+- Clubs print training descriptions in several columns, and a coach can choose smaller boxes for a training. D25 lets a training have its own rules.
+- IOF Control Descriptions (p. 3) gives boxes of 5–7 mm, so competition maps stay as they are.
+
+### Alternatives considered
+
+- **Only smaller boxes:** 4 mm pictograms are hard to read, and the box would still be one tall strip.
+- **A3 paper:** more paper does not help a coach who prints on A4, and it doubles the area to print.
+- **A user setting for the box size and parts:** possible later; the automatic choice covers the common case without another control.
+
+### Consequences
+
+- `packages/rules` has `TRAINING_DESCRIPTION_BOX` (box sizes, up to 3 parts, at most half of each printable side) and `descriptionLayoutsFor`.
+- A print area carries its description layout. The map, the print page and the PDF draw the box with it. The separate description sheet stays in standard boxes.

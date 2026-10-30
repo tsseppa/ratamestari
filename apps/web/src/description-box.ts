@@ -28,6 +28,7 @@ export function descriptionBoxFor(
     courseName: courseNameOf(request, labels.trainingCourse),
   })
   const rendered = renderDescriptionSheet(sheet, {
+    ...course.printArea?.descriptionLayout,
     pixelsPerMillimetre: DISPLAY_PIXELS_PER_MILLIMETRE,
   })
   const printScale = course.printArea?.scale ?? map.scale
